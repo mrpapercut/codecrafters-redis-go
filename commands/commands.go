@@ -13,19 +13,19 @@ func HandleCommand(rawcmd []byte) (string, error) {
 
 	switch parsed.Type {
 	case resp.Array:
-		cmd := parsed.Array[0].String
-
-		if cmd == "" {
-			return "", fmt.Errorf("error: no command provided")
+		if len(parsed.Array) == 0 {
+			return "", fmt.Errorf("missing command '%s'", rawcmd)
 		}
-	case resp.SimpleString:
-		cmd := parsed.String
+
+		cmd := parsed.Array[0].String
 
 		switch cmd {
 		case "PING":
 			return "+PONG\r\n", nil
+		default:
+			return "", fmt.Errorf("unsupported command '%s'", rawcmd)
 		}
+	default:
+		return "", fmt.Errorf("unsupported command '%s'", rawcmd)
 	}
-
-	return "", fmt.Errorf("unsupported command '%s'", rawcmd)
 }
