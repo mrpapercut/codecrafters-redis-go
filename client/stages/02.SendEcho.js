@@ -1,7 +1,7 @@
 const { Send } = require('../client');
 
-async function SendPing() {
-    const cmd = "*1\r\n$4\r\nPING\r\n"
+async function SendEcho() {
+    const cmd = "*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n";
 
     try {
         const res = await Send(cmd);
@@ -12,4 +12,4 @@ async function SendPing() {
     }
 }
 
-(async () => await SendPing())()
+(async () => await SendEcho())()

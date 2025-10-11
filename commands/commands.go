@@ -39,6 +39,6 @@ func HandleCommand(rawcmd []byte) (string, error) {
 			return "", fmt.Errorf("unsupported command '%s'", rawcmd)
 		}
 	default:
-		return "", fmt.Errorf("unsupported command '%s'", rawcmd)
+		return "", fmt.Errorf("invalid syntax '%s'", rawcmd)
 	}
 }
