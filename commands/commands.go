@@ -6,6 +6,8 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
+type SupportedCommand string
+
 var parser = resp.GetParser()
 
 func HandleCommand(rawcmd []byte) (string, error) {
@@ -19,9 +21,11 @@ func HandleCommand(rawcmd []byte) (string, error) {
 
 		cmd := parsed.Array[0].String
 
-		switch cmd {
-		case "PING":
-			return "+PONG\r\n", nil
+		switch SupportedCommand(cmd) {
+		case PING:
+			return HandlePING(parsed)
+		case ECHO:
+			return HandleECHO(parsed)
 		default:
 			return "", fmt.Errorf("unsupported command '%s'", rawcmd)
 		}
