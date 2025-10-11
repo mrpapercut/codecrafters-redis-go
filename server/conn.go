@@ -34,7 +34,7 @@ func Handle(conn net.Conn) {
 
 		response, err := commands.HandleCommand(data)
 		if err != nil {
-			conn.Write([]byte("-ERR " + err.Error()))
+			conn.Write([]byte("-ERR " + err.Error() + "\r\n"))
 			break
 		}
 
