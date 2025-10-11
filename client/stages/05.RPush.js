@@ -1,9 +1,9 @@
 const { Send } = require('../client')
 const { toResp } = require('../types')
 
-async function SendPing() {
-    const message = toResp(['PING'])
-    const expected = '+PONG\r\n'
+async function SendRPush() {
+    const message = toResp(['RPUSH', 'list_key', 'element'])
+    const expected = ":1\r\n"
 
     try {
         const got = await Send(message);
@@ -18,4 +18,4 @@ async function SendPing() {
     }
 }
 
-(async () => await SendPing())()
+(async () => await SendRPush())()

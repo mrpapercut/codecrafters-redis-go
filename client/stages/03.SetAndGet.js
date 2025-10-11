@@ -1,24 +1,35 @@
-const { Send } = require('../client');
+const { Send } = require('../client')
+const { toResp } = require('../types')
 
 async function SendSet() {
-    const cmd = "*3\r\n$3\r\nSET\r\n$5\r\nmykey\r\n$8\r\nmy-value\r\n";
+    const message = toResp(['SET', 'my-key', 'my-value'])
+    const expected = "+OK\r\n"
 
     try {
-        const res = await Send(cmd);
+        const got = await Send(message);
 
-        console.log(res);
+        if (got !== expected) {
+            console.error({ expected, got })
+        } else {
+            console.log(got.replaceAll("\r\n", "\\r\\n"))
+        }
     } catch (err) {
         console.error(err)
     }
 }
 
 async function SendGet() {
-    const cmd = "*2\r\n$3\r\nGET\r\n$5\r\nmykey\r\n";
+    const message = toResp(['GET', 'my-key'])
+    const expected = "$8\r\nmy-value\r\n"
 
     try {
-        const res = await Send(cmd);
+        const got = await Send(message);
 
-        console.log(res);
+        if (got !== expected) {
+            console.error({ expected, got })
+        } else {
+            console.log(got.replaceAll("\r\n", "\\r\\n"))
+        }
     } catch (err) {
         console.error(err)
     }

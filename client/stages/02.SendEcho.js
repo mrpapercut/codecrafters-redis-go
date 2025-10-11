@@ -1,12 +1,18 @@
-const { Send } = require('../client');
+const { Send } = require('../client')
+const { toResp } = require('../types')
 
 async function SendEcho() {
-    const cmd = "*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n";
+    const message = toResp(['ECHO', 'hey'])
+    const expected = "$3\r\nhey\r\n"
 
     try {
-        const res = await Send(cmd);
+        const got = await Send(message);
 
-        console.log(res);
+        if (got !== expected) {
+            console.error({ expected, got })
+        } else {
+            console.log(got.replaceAll("\r\n", "\\r\\n"))
+        }
     } catch (err) {
         console.error(err)
     }

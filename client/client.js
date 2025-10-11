@@ -16,7 +16,7 @@ async function Send(command) {
         });
 
         socket.on('data', data => {
-            res(data.toString().replaceAll("\r\n", "\\r\\n"));
+            res(data.toString());
 
             socket.destroy();
         });
