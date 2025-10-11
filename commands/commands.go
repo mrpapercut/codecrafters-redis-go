@@ -36,7 +36,7 @@ func HandleCommand(rawcmd []byte) (string, error) {
 		case GET:
 			return HandleGET(parsed)
 		default:
-			return "", fmt.Errorf("unsupported command '%s'", rawcmd)
+			return "", fmt.Errorf("unsupported command '%s'", cmd)
 		}
 	default:
 		return "", fmt.Errorf("invalid syntax '%s'", rawcmd)
