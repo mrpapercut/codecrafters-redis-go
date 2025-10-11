@@ -47,7 +47,7 @@ func startServer() {
 	go s.StartListening(address)
 
 	if runLocal {
-		fmt.Println("Started listening")
+		fmt.Println("started listening")
 	}
 
 	select {}

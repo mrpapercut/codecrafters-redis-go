@@ -1,14 +1,15 @@
 package redis
 
 import (
-	"fmt"
 	"sync"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
 type Redis struct {
-	storage map[string]*resp.RESPValue
+	storage     map[string]*resp.RESPValue
+	expirations map[string]*time.Time
 }
 
 var redisLock = &sync.Mutex{}
@@ -21,7 +22,8 @@ func GetInstance() *Redis {
 
 		if redisInstance == nil {
 			redisInstance = &Redis{
-				storage: make(map[string]*resp.RESPValue),
+				storage:     make(map[string]*resp.RESPValue),
+				expirations: make(map[string]*time.Time),
 			}
 		}
 	}
@@ -29,17 +31,7 @@ func GetInstance() *Redis {
 	return redisInstance
 }
 
-func (r *Redis) Set(key *resp.RESPValue, value *resp.RESPValue) error {
-	r.storage[key.String] = value
-
-	return nil
-}
-
-func (r *Redis) Get(key string) (string, error) {
-	value, ok := r.storage[key]
-	if !ok {
-		return "", fmt.Errorf("error: key not found")
-	}
-
-	return value.ToRESP(), nil
+func (r *Redis) cleanupKey(key string) {
+	delete(r.storage, key)
+	delete(r.expirations, key)
 }
