@@ -35,6 +35,8 @@ func HandleCommand(rawcmd []byte) (string, error) {
 			return HandleSET(parsed)
 		case GET:
 			return HandleGET(parsed)
+		case RPUSH:
+			return HandleRPUSH(parsed)
 		default:
 			return "", fmt.Errorf("unsupported command '%s'", cmd)
 		}
