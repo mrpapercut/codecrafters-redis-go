@@ -16,76 +16,6 @@ type Command struct {
 	offset int
 }
 
-// const validTokens = `[+\-:$*_#,(!=%|~>]`
-
-type RESPType int
-
-const (
-	SimpleString RESPType = iota
-	SimpleError
-	Integer
-	BulkString
-	Array
-	Null
-	Boolean
-	Double
-	BigNum
-	BulkError
-	Verbatim
-	Map
-	Attribute
-	Set
-	Push
-)
-
-type RESPValue struct {
-	Type         RESPType
-	String       string
-	Integer      int64
-	Array        []*RESPValue
-	IsNull       bool
-	BoolVal      *bool
-	Double       float64
-	BigNum       *big.Int
-	ErrorType    string
-	ErrorMessage string
-	Encoding     string
-	Map          map[*RESPValue]*RESPValue
-}
-
-func (r *RESPValue) GetValue() any {
-	switch r.Type {
-	case SimpleString:
-		return r.String
-	case SimpleError:
-		return r.ErrorType + " " + r.ErrorMessage
-	case Integer:
-		return r.Integer
-	case BulkString:
-		return r.String
-	case Array:
-		return r.Array
-	case Null:
-		return r.IsNull
-	case Boolean:
-		return &r.BoolVal
-	case Double:
-		return r.Double
-	case BigNum:
-		return r.BigNum.String()
-	case BulkError:
-		return r.ErrorType + " " + r.ErrorMessage
-	case Verbatim:
-		return r.String
-	case Map:
-		return r.Map
-	default:
-		log.Fatal("error: unsupported type")
-	}
-
-	return nil
-}
-
 func GetParser() *Parser {
 	return &Parser{}
 }
@@ -128,34 +58,34 @@ func (p *Parser) parseValue(cmd *Command) *RESPValue {
 
 	cmd.offset++
 
-	switch prefix {
-	case "+":
+	switch RESPPrefix(prefix) {
+	case SimpleStringPrefix:
 		return p.parseSimpleString(cmd)
-	case "-":
+	case SimpleErrorPrefix:
 		return p.parseSimpleError(cmd)
-	case ":":
+	case IntegerPrefix:
 		return p.parseInteger(cmd)
-	case "$":
+	case BulkStringPrefix:
 		return p.parseBulkString(cmd)
-	case "*":
+	case ArrayPrefix:
 		return p.parseArray(cmd)
-	case "_":
+	case NullPrefix:
 		return p.parseNull(cmd)
-	case "#":
+	case BooleanPrefix:
 		return p.parseBoolean(cmd)
-	case ",":
+	case DoublePrefix:
 		return p.parseDouble(cmd)
-	case "(":
+	case BigNumPrefix:
 		return p.parseBigNum(cmd)
-	case "!":
+	case BulkErrorPrefix:
 		return p.parseBulkError(cmd)
-	case "=":
+	case VerbatimPrefix:
 		return p.parseVerbatim(cmd)
-	case "%":
+	case MapPrefix:
 		return p.parseMap(cmd)
 	// case "|":
 	// 	return p.parseAttribute(cmd)
-	// case "~":
+	// case SetPrefix:
 	// 	return p.parseSet(cmd)
 	// case ">":
 	// 	return p.parsePush(cmd)
@@ -203,7 +133,7 @@ func (p *Parser) parseBulkString(cmd *Command) *RESPValue {
 
 	if len == -1 {
 		return &RESPValue{
-			Type:   Null,
+			Type:   BulkString,
 			IsNull: true,
 		}
 	}
@@ -226,7 +156,7 @@ func (p *Parser) parseArray(cmd *Command) *RESPValue {
 
 	if count == -1 {
 		return &RESPValue{
-			Type:   Null,
+			Type:   Array,
 			IsNull: true,
 		}
 	}
@@ -343,10 +273,6 @@ func (p *Parser) parseMap(cmd *Command) *RESPValue {
 		Type: Map,
 		Map:  resp,
 	}
-}
-
-func (p *Parser) ToResponse() string {
-	return ""
 }
 
 func getType(respType RESPType) string {

@@ -23,6 +23,12 @@ func TestParseSimpleString(t *testing.T) {
 	if parsed.String != "OK" {
 		t.Errorf("expected String to be 'OK', got '%s' instead", parsed.String)
 	}
+
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
 }
 
 func TestParseSimpleError(t *testing.T) {
@@ -40,6 +46,12 @@ func TestParseSimpleError(t *testing.T) {
 	if parsed.ErrorMessage != "message" {
 		t.Errorf("expected ErrorMessage to be 'message', got '%s' instead", parsed.ErrorMessage)
 	}
+
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
 }
 
 func TestParseInteger(t *testing.T) {
@@ -54,6 +66,12 @@ func TestParseInteger(t *testing.T) {
 		t.Errorf("expected Integer to be 1000, got %d instead", parsed.Integer)
 	}
 
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
+
 	raw = ":-1000\r\n"
 	parsed = parser.ParseCommand(raw)
 
@@ -63,6 +81,12 @@ func TestParseInteger(t *testing.T) {
 
 	if parsed.Integer != -1000 {
 		t.Errorf("expected Integer to be -1000, got %d instead", parsed.Integer)
+	}
+
+	respString = parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
 	}
 }
 
@@ -78,6 +102,12 @@ func TestParseBulkString(t *testing.T) {
 		t.Errorf("expected String to be 'hello', got '%s' instead", parsed.String)
 	}
 
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
+
 	// Empty string
 	raw = "$0\r\n\r\n"
 	parsed = parser.ParseCommand(raw)
@@ -90,16 +120,28 @@ func TestParseBulkString(t *testing.T) {
 		t.Errorf("expected String to be '', got '%s' instead", parsed.String)
 	}
 
+	respString = parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
+
 	// Null-string
 	raw = "$-1\r\n"
 	parsed = parser.ParseCommand(raw)
 
-	if parsed.Type != Null {
-		t.Errorf("expected Type to be Null, got '%s' instead", getType(parsed.Type))
+	if parsed.Type != BulkString {
+		t.Errorf("expected Type to be BulkString, got '%s' instead", getType(parsed.Type))
 	}
 
 	if !parsed.IsNull {
 		t.Error("expected IsNull to be true, got false instead")
+	}
+
+	respString = parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
 	}
 }
 
@@ -116,16 +158,28 @@ func TestParseArray(t *testing.T) {
 		t.Errorf("expected Array to have length 0, got %d instead", len(parsed.Array))
 	}
 
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
+
 	// Null-array
 	raw = "*-1\r\n"
 	parsed = parser.ParseCommand(raw)
 
-	if parsed.Type != Null {
-		t.Errorf("expected Type to be Null, got '%s' instead", getType(parsed.Type))
+	if parsed.Type != Array {
+		t.Errorf("expected Type to be Array, got '%s' instead", getType(parsed.Type))
 	}
 
 	if !parsed.IsNull {
 		t.Error("expected IsNull to be true, got false instead")
+	}
+
+	respString = parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
 	}
 
 	// Array of strings
@@ -156,6 +210,12 @@ func TestParseArray(t *testing.T) {
 		t.Errorf("expected Array[1].String to be 'world', got '%s' instead", parsed.Array[1].String)
 	}
 
+	respString = parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
+
 	// Array with mixed data types
 	raw = "*2\r\n:1\r\n$5\r\nhello\r\n"
 	parsed = parser.ParseCommand(raw)
@@ -182,6 +242,12 @@ func TestParseArray(t *testing.T) {
 
 	if parsed.Array[1].String != "hello" {
 		t.Errorf("expected Array[1].String to be 'hello', got '%s' instead", parsed.Array[1].String)
+	}
+
+	respString = parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
 	}
 }
 
@@ -220,6 +286,12 @@ func TestParseNestedArrays(t *testing.T) {
 	if parsed.Array[1].Array[1].String != "inner-2" {
 		t.Errorf("expected Array[1].Array[1].String to be 'inner-2', got '%s' instead", parsed.Array[1].Array[1].String)
 	}
+
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+	}
 }
 
 func TestParseNull(t *testing.T) {
@@ -232,6 +304,12 @@ func TestParseNull(t *testing.T) {
 
 	if !parsed.IsNull {
 		t.Error("expected IsNull to be true, got false instead")
+	}
+
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
 	}
 }
 
@@ -261,6 +339,12 @@ func TestParseBoolean(t *testing.T) {
 				t.Error("expected BoolVal to be 'false', got 'true' instead")
 			}
 		}
+
+		respString := parsed.ToRESP()
+
+		if respString != raw {
+			t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+		}
 	}
 
 }
@@ -287,9 +371,23 @@ func TestParseDouble(t *testing.T) {
 		if parsed.Double != expected {
 			t.Errorf("expected Double to be '%f', got '%f' instead", expected, parsed.Double)
 		}
+
+		respString := parsed.ToRESP()
+
+		switch raw {
+		case ",+1.23\r\n":
+			raw = ",1.23\r\n"
+		case ",1.23E10\r\n":
+			raw = ",1.23e10\r\n"
+		}
+
+		if respString != raw {
+			t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
+		}
 	}
 
-	parsed := parser.ParseCommand(",nan\r\n")
+	raw := ",nan\r\n"
+	parsed := parser.ParseCommand(raw)
 
 	if parsed.Type != Double {
 		t.Errorf("expected Type to be Double, got '%s' instead", getType(parsed.Type))
@@ -297,6 +395,12 @@ func TestParseDouble(t *testing.T) {
 
 	if !math.IsNaN(parsed.Double) {
 		t.Error("expected Double to be NaN, but isn't")
+	}
+
+	respString := parsed.ToRESP()
+
+	if respString != raw {
+		t.Errorf("expected ToRESP() to return '%s', got '%s' instead", raw, respString)
 	}
 }
 
