@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codecrafters-io/redis-starter-go/redis"
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
 type SupportedCommand string
 
+const RESPONSE_OK = "+OK\r\n"
+
 var parser = resp.GetParser()
+var redisInstance = redis.GetInstance()
 
 func HandleCommand(rawcmd []byte) (string, error) {
 	parsed := parser.ParseCommand(string(rawcmd))
@@ -27,6 +31,10 @@ func HandleCommand(rawcmd []byte) (string, error) {
 			return HandlePING(parsed)
 		case ECHO:
 			return HandleECHO(parsed)
+		case SET:
+			return HandleSET(parsed)
+		case GET:
+			return HandleGET(parsed)
 		default:
 			return "", fmt.Errorf("unsupported command '%s'", rawcmd)
 		}
