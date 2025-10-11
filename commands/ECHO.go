@@ -4,7 +4,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
-const ECHO SupportedCommand = "ECHO"
+const ECHO SupportedCommand = "echo"
 
 func HandleECHO(cmd *resp.RESPValue) (string, error) {
 	return cmd.Array[1].ToRESP(), nil

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
@@ -19,7 +20,7 @@ func HandleCommand(rawcmd []byte) (string, error) {
 			return "", fmt.Errorf("missing command '%s'", rawcmd)
 		}
 
-		cmd := parsed.Array[0].String
+		cmd := strings.ToLower(parsed.Array[0].String)
 
 		switch SupportedCommand(cmd) {
 		case PING:
