@@ -100,10 +100,13 @@ func (r *RESPValue) ToRESP() string {
 	switch r.Type {
 	case SimpleString:
 		return string(SimpleStringPrefix) + r.String + LB
+
 	case SimpleError:
 		return string(SimpleErrorPrefix) + r.ErrorType + " " + r.ErrorMessage + LB
+
 	case Integer:
 		return string(IntegerPrefix) + fmt.Sprintf("%d", r.Integer) + LB
+
 	case BulkString:
 		if r.IsNull {
 			return string(BulkStringPrefix) + "-1" + LB
@@ -111,6 +114,7 @@ func (r *RESPValue) ToRESP() string {
 
 		length := len(r.String)
 		return string(BulkStringPrefix) + fmt.Sprintf("%d", length) + LB + r.String + LB
+
 	case Array:
 		if r.IsNull {
 			return string(ArrayPrefix) + "-1" + LB
@@ -127,14 +131,17 @@ func (r *RESPValue) ToRESP() string {
 		}
 
 		return str
+
 	case Null:
 		return string(NullPrefix) + LB
+
 	case Boolean:
 		if *r.BoolVal {
 			return string(BooleanPrefix) + "t" + LB
 		} else {
 			return string(BooleanPrefix) + "f" + LB
 		}
+
 	case Double:
 		switch {
 		case math.IsInf(r.Double, 1):
@@ -148,14 +155,18 @@ func (r *RESPValue) ToRESP() string {
 			val = strings.ReplaceAll(val, "e+", "e")
 			return strings.ToLower(string(DoublePrefix) + val + LB)
 		}
+
 	case BigNum:
 		return string(BigNumPrefix) + r.BigNum.String() + LB
+
 	case BulkError:
 		length := len(r.ErrorType) + len(r.ErrorMessage) + 1
 		return string(BulkErrorPrefix) + fmt.Sprintf("%d", length) + LB + r.ErrorType + " " + r.ErrorMessage + LB
+
 	case Verbatim:
 		length := len(r.String) + 4
 		return string(VerbatimPrefix) + fmt.Sprintf("%d", length) + LB + r.Encoding + ":" + r.String + LB
+
 	case Map:
 		count := len(r.Map)
 
