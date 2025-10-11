@@ -25,7 +25,10 @@ func (r *Redis) Set(key *resp.RESPValue, value *resp.RESPValue, opts ...CommandS
 		opt(ctx)
 	}
 
-	r.storage[key.String] = value
+	r.storage[key.String] = &StorageField{
+		Type: KeyStorage,
+		Key:  value,
+	}
 
 	if ctx.expire != nil {
 		r.expirations[key.String] = ctx.expire

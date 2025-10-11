@@ -2,24 +2,21 @@ package redis
 
 import (
 	"fmt"
-	"time"
 )
 
 func (r *Redis) Get(key string) (string, error) {
-	expiry, ok := r.expirations[key]
-	if ok {
-		if expiry.Before(time.Now()) {
-			// Key expired
-			r.cleanupKey(key)
-
-			return "", fmt.Errorf("error: key expired")
-		}
+	if r.isExpired(key) {
+		return "", fmt.Errorf("key not found")
 	}
 
 	value, ok := r.storage[key]
 	if !ok {
-		return "", fmt.Errorf("error: key not found")
+		return "", fmt.Errorf("key not found")
 	}
 
-	return value.ToRESP(), nil
+	if value.Type != KeyStorage {
+		return "", fmt.Errorf("operation against a key holding the wrong kind of value")
+	}
+
+	return value.Key.ToRESP(), nil
 }
