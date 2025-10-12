@@ -187,14 +187,14 @@ func (p *Parser) parseBoolean(cmd *Command) *RESPValue {
 		Type: Boolean,
 	}
 
-	_t := true
-	_f := false
+	t := true
+	f := false
 
 	switch val {
 	case "t":
-		resp.BoolVal = &_t
+		resp.BoolVal = &t
 	case "f":
-		resp.BoolVal = &_f
+		resp.BoolVal = &f
 	default:
 		log.Fatal("error: invalid boolean value")
 	}

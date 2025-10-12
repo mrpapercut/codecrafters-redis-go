@@ -32,11 +32,7 @@ func Handle(conn net.Conn) {
 
 		data := buf[:n]
 
-		response, err := commands.HandleCommand(data)
-		if err != nil {
-			conn.Write([]byte("-ERR " + err.Error() + "\r\n"))
-			break
-		}
+		response := commands.HandleCommand(data)
 
 		conn.Write([]byte(response))
 	}

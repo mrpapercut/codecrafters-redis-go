@@ -8,13 +8,13 @@ import (
 
 const RPUSH SupportedCommand = "rpush"
 
-func HandleRPUSH(cmd *resp.RESPValue) (string, error) {
+func HandleRPUSH(cmd *resp.RESPValue) string {
 	lastLength := 0
 
 	for i := range cmd.Array[2:] {
 		listLength, err := redisInstance.PushList(cmd.Array[1].String, cmd.Array[i])
 		if err != nil {
-			return "", fmt.Errorf("error handling rpush: %v", err)
+			return resp.GenericError(fmt.Sprintf("error handling rpush: %v", err))
 		}
 
 		lastLength = listLength
@@ -25,5 +25,5 @@ func HandleRPUSH(cmd *resp.RESPValue) (string, error) {
 		Integer: int64(lastLength),
 	}
 
-	return resp.ToRESP(), nil
+	return resp.ToRESP()
 }

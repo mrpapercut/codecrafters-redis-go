@@ -15,13 +15,13 @@ const RESPONSE_OK = "+OK\r\n"
 var parser = resp.GetParser()
 var redisInstance = redis.GetInstance()
 
-func HandleCommand(rawcmd []byte) (string, error) {
+func HandleCommand(rawcmd []byte) string {
 	parsed := parser.ParseCommand(string(rawcmd))
 
 	switch parsed.Type {
 	case resp.Array:
 		if len(parsed.Array) == 0 {
-			return "", fmt.Errorf("missing command '%s'", rawcmd)
+			return resp.SyntaxError(fmt.Sprintf("missing command '%s'", rawcmd))
 		}
 
 		cmd := strings.ToLower(parsed.Array[0].String)
@@ -38,9 +38,9 @@ func HandleCommand(rawcmd []byte) (string, error) {
 		case RPUSH:
 			return HandleRPUSH(parsed)
 		default:
-			return "", fmt.Errorf("unsupported command '%s'", cmd)
+			return resp.SyntaxError(fmt.Sprintf("unsupported command '%s'", cmd))
 		}
 	default:
-		return "", fmt.Errorf("invalid syntax '%s'", rawcmd)
+		return resp.SyntaxError(fmt.Sprintf("invalid syntax '%s'", rawcmd))
 	}
 }

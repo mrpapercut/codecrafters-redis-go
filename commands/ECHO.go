@@ -6,6 +6,6 @@ import (
 
 const ECHO SupportedCommand = "echo"
 
-func HandleECHO(cmd *resp.RESPValue) (string, error) {
-	return cmd.Array[1].ToRESP(), nil
+func HandleECHO(cmd *resp.RESPValue) string {
+	return cmd.Array[1].ToRESP()
 }

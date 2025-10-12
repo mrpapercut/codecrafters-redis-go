@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const LB = "\r\n"
+const EOL = "\r\n"
 
 type RESPType int
 
@@ -99,33 +99,33 @@ func (r *RESPValue) GetValue() any {
 func (r *RESPValue) ToRESP() string {
 	switch r.Type {
 	case SimpleString:
-		return string(SimpleStringPrefix) + r.String + LB
+		return string(SimpleStringPrefix) + r.String + EOL
 
 	case SimpleError:
-		return string(SimpleErrorPrefix) + r.ErrorType + " " + r.ErrorMessage + LB
+		return string(SimpleErrorPrefix) + r.ErrorType + " " + r.ErrorMessage + EOL
 
 	case Integer:
-		return string(IntegerPrefix) + fmt.Sprintf("%d", r.Integer) + LB
+		return string(IntegerPrefix) + fmt.Sprintf("%d", r.Integer) + EOL
 
 	case BulkString:
 		if r.IsNull {
-			return string(BulkStringPrefix) + "-1" + LB
+			return string(BulkStringPrefix) + "-1" + EOL
 		}
 
 		length := len(r.String)
-		return string(BulkStringPrefix) + fmt.Sprintf("%d", length) + LB + r.String + LB
+		return string(BulkStringPrefix) + fmt.Sprintf("%d", length) + EOL + r.String + EOL
 
 	case Array:
 		if r.IsNull {
-			return string(ArrayPrefix) + "-1" + LB
+			return string(ArrayPrefix) + "-1" + EOL
 		}
 
 		count := len(r.Array)
 		if count == 0 {
-			return string(ArrayPrefix) + "0" + LB
+			return string(ArrayPrefix) + "0" + EOL
 		}
 
-		str := string(ArrayPrefix) + fmt.Sprintf("%d", count) + LB
+		str := string(ArrayPrefix) + fmt.Sprintf("%d", count) + EOL
 		for i := range count {
 			str += r.Array[i].ToRESP()
 		}
@@ -133,13 +133,13 @@ func (r *RESPValue) ToRESP() string {
 		return str
 
 	case Null:
-		return string(NullPrefix) + LB
+		return string(NullPrefix) + EOL
 
 	case Boolean:
 		if *r.BoolVal {
-			return string(BooleanPrefix) + "t" + LB
+			return string(BooleanPrefix) + "t" + EOL
 		} else {
-			return string(BooleanPrefix) + "f" + LB
+			return string(BooleanPrefix) + "f" + EOL
 		}
 
 	case Double:
@@ -153,24 +153,24 @@ func (r *RESPValue) ToRESP() string {
 		default:
 			val := fmt.Sprintf("%g", r.Double)
 			val = strings.ReplaceAll(val, "e+", "e")
-			return strings.ToLower(string(DoublePrefix) + val + LB)
+			return strings.ToLower(string(DoublePrefix) + val + EOL)
 		}
 
 	case BigNum:
-		return string(BigNumPrefix) + r.BigNum.String() + LB
+		return string(BigNumPrefix) + r.BigNum.String() + EOL
 
 	case BulkError:
 		length := len(r.ErrorType) + len(r.ErrorMessage) + 1
-		return string(BulkErrorPrefix) + fmt.Sprintf("%d", length) + LB + r.ErrorType + " " + r.ErrorMessage + LB
+		return string(BulkErrorPrefix) + fmt.Sprintf("%d", length) + EOL + r.ErrorType + " " + r.ErrorMessage + EOL
 
 	case Verbatim:
 		length := len(r.String) + 4
-		return string(VerbatimPrefix) + fmt.Sprintf("%d", length) + LB + r.Encoding + ":" + r.String + LB
+		return string(VerbatimPrefix) + fmt.Sprintf("%d", length) + EOL + r.Encoding + ":" + r.String + EOL
 
 	case Map:
 		count := len(r.Map)
 
-		str := string(MapPrefix) + fmt.Sprintf("%d", count) + LB
+		str := string(MapPrefix) + fmt.Sprintf("%d", count) + EOL
 		for key, val := range r.Map {
 			str += key.ToRESP() + val.ToRESP()
 		}
