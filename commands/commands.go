@@ -32,6 +32,7 @@ func HandleCommand(rawcmd []byte) string {
 			SET:    HandleSET,
 			GET:    HandleGET,
 			RPUSH:  HandleRPUSH,
+			LPUSH:  HandleLPUSH,
 			LRANGE: HandleLRANGE,
 			LLEN:   HandleLLEN,
 		}
