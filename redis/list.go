@@ -29,8 +29,7 @@ func (r *Redis) GetList(key string) (*resp.RESPValue, error) {
 	value, ok := r.storage[key]
 	if !ok {
 		return &resp.RESPValue{
-			Type:    resp.Integer,
-			Integer: 0,
+			Type: resp.Array,
 		}, nil
 	}
 
@@ -39,7 +38,7 @@ func (r *Redis) GetList(key string) (*resp.RESPValue, error) {
 	}
 
 	return &resp.RESPValue{
-		Type:    resp.Integer,
-		Integer: int64(len(value.List)),
+		Type:  resp.Array,
+		Array: value.List,
 	}, nil
 }

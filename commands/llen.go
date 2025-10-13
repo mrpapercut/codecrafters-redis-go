@@ -9,10 +9,15 @@ import (
 const LLEN SupportedCommand = "llen"
 
 func HandleLLEN(cmd *resp.RESPValue) string {
-	listLength, err := redisInstance.GetList(cmd.Array[1].String)
+	list, err := redisInstance.GetList(cmd.Array[1].String)
 	if err != nil {
 		return resp.GenericError(fmt.Sprintf("error handling LLEN: %v", err))
 	}
 
-	return listLength.ToRESP()
+	response := &resp.RESPValue{
+		Type:    resp.Integer,
+		Integer: int64(len(list.Array)),
+	}
+
+	return response.ToRESP()
 }
