@@ -6,6 +6,47 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
+func (r *Redis) GetList(key string) (*resp.RESPValue, error) {
+	value, ok := r.storage[key]
+	if !ok {
+		return &resp.RESPValue{
+			Type: resp.Array,
+		}, nil
+	}
+
+	if value.Type != ListStorage {
+		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
+	}
+
+	return &resp.RESPValue{
+		Type:  resp.Array,
+		Array: value.List,
+	}, nil
+}
+
+func (r *Redis) SetList(key string, items []*resp.RESPValue) error {
+	value, ok := r.storage[key]
+	if ok && value.Type != ListStorage {
+		return fmt.Errorf("operation against a key holding the wrong kind of value")
+	}
+
+	r.storage[key] = &StorageField{
+		Type: ListStorage,
+		List: items,
+	}
+
+	return nil
+}
+
+func (r *Redis) RemoveList(key string) error {
+	_, ok := r.storage[key]
+	if ok {
+		r.cleanupKey(key)
+	}
+
+	return nil
+}
+
 func (r *Redis) AppendList(key string, val *resp.RESPValue) (int, error) {
 	value, ok := r.storage[key]
 
@@ -45,22 +86,4 @@ func (r *Redis) PrependList(key string, val *resp.RESPValue) (int, error) {
 	}
 
 	return len(r.storage[key].List), nil
-}
-
-func (r *Redis) GetList(key string) (*resp.RESPValue, error) {
-	value, ok := r.storage[key]
-	if !ok {
-		return &resp.RESPValue{
-			Type: resp.Array,
-		}, nil
-	}
-
-	if value.Type != ListStorage {
-		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
-	}
-
-	return &resp.RESPValue{
-		Type:  resp.Array,
-		Array: value.List,
-	}, nil
 }
