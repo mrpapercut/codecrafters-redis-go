@@ -3,6 +3,7 @@ package commands
 import "testing"
 
 func TestHandlePing(t *testing.T) {
+	// PING
 	message := []byte("*1\r\n$4\r\nPING\r\n")
 	expected := "+PONG\r\n"
 

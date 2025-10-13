@@ -3,6 +3,7 @@ package commands
 import "testing"
 
 func TestHandleEcho(t *testing.T) {
+	// ECHO my test message
 	message := []byte("*2\r\n$4\r\nECHO\r\n$15\r\nmy test message\r\n")
 	expected := "$15\r\nmy test message\r\n"
 

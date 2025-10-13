@@ -6,7 +6,8 @@ import (
 )
 
 func TestHandleSet(t *testing.T) {
-	message := []byte("*3\r\n$3\r\nSET\r\n$6\r\nmy-key\r\n$8\r\nmy-value\r\n")
+	// SET set_key value
+	message := []byte("*3\r\n$3\r\nSET\r\n$7\r\nset_key\r\n$5\r\nvalue\r\n")
 	expected := "+OK\r\n"
 
 	response := HandleCommand(message)
@@ -14,8 +15,9 @@ func TestHandleSet(t *testing.T) {
 		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
 	}
 
-	message = []byte("*2\r\n$3\r\nGET\r\n$6\r\nmy-key\r\n")
-	expected = "$8\r\nmy-value\r\n"
+	// GET set_key
+	message = []byte("*2\r\n$3\r\nGET\r\n$7\r\nset_key\r\n")
+	expected = "$5\r\nvalue\r\n"
 
 	response = HandleCommand(message)
 	if response != expected {
@@ -24,7 +26,8 @@ func TestHandleSet(t *testing.T) {
 }
 
 func TestHandleSetWithSecondExpiration(t *testing.T) {
-	message := []byte("*5\r\n$3\r\nSET\r\n$17\r\nmy-expiration-key\r\n$8\r\nmy-value\r\n$2\r\nEX\r\n$1\r\n1\r\n")
+	// SET set_key_exp_sec value EX 1
+	message := []byte("*5\r\n$3\r\nSET\r\n$15\r\nset_key_exp_sec\r\n$5\r\nvalue\r\n$2\r\nEX\r\n$1\r\n1\r\n")
 	expected := "+OK\r\n"
 
 	response := HandleCommand(message)
@@ -32,8 +35,9 @@ func TestHandleSetWithSecondExpiration(t *testing.T) {
 		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
 	}
 
-	message = []byte("*2\r\n$3\r\nGET\r\n$17\r\nmy-expiration-key\r\n")
-	expected = "$8\r\nmy-value\r\n"
+	// GET set_key_exp_sec
+	message = []byte("*2\r\n$3\r\nGET\r\n$15\r\nset_key_exp_sec\r\n")
+	expected = "$5\r\nvalue\r\n"
 
 	response = HandleCommand(message)
 	if response != expected {
@@ -42,7 +46,8 @@ func TestHandleSetWithSecondExpiration(t *testing.T) {
 
 	time.Sleep(time.Duration(1) * time.Second)
 
-	message = []byte("*2\r\n$3\r\nGET\r\n$17\r\nmy-expiration-key\r\n")
+	// GET set_key_exp_sec
+	message = []byte("*2\r\n$3\r\nGET\r\n$15\r\nset_key_exp_sec\r\n")
 	expected = "$-1\r\n"
 
 	response = HandleCommand(message)
@@ -52,7 +57,8 @@ func TestHandleSetWithSecondExpiration(t *testing.T) {
 }
 
 func TestHandleSetWithMilliSecondExpiration(t *testing.T) {
-	message := []byte("*5\r\n$3\r\nSET\r\n$19\r\nmy-expiration-key-2\r\n$8\r\nmy-value\r\n$2\r\nPX\r\n$3\r\n500\r\n")
+	// SET set_key_exp_ms value PX 500
+	message := []byte("*5\r\n$3\r\nSET\r\n$14\r\nset_key_exp_ms\r\n$5\r\nvalue\r\n$2\r\nPX\r\n$3\r\n500\r\n")
 	expected := "+OK\r\n"
 
 	response := HandleCommand(message)
@@ -60,8 +66,9 @@ func TestHandleSetWithMilliSecondExpiration(t *testing.T) {
 		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
 	}
 
-	message = []byte("*2\r\n$3\r\nGET\r\n$19\r\nmy-expiration-key-2\r\n")
-	expected = "$8\r\nmy-value\r\n"
+	// GET set_key_exp_ms
+	message = []byte("*2\r\n$3\r\nGET\r\n$14\r\nset_key_exp_ms\r\n")
+	expected = "$5\r\nvalue\r\n"
 
 	response = HandleCommand(message)
 	if response != expected {
@@ -70,7 +77,8 @@ func TestHandleSetWithMilliSecondExpiration(t *testing.T) {
 
 	time.Sleep(time.Duration(750) * time.Millisecond)
 
-	message = []byte("*2\r\n$3\r\nGET\r\n$19\r\nmy-expiration-key-2\r\n")
+	// GET set_key_exp_ms
+	message = []byte("*2\r\n$3\r\nGET\r\n$14\r\nset_key_exp_ms\r\n")
 	expected = "$-1\r\n"
 
 	response = HandleCommand(message)
