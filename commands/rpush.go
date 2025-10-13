@@ -11,8 +11,8 @@ const RPUSH SupportedCommand = "rpush"
 func HandleRPUSH(cmd *resp.RESPValue) string {
 	lastLength := 0
 
-	for i := range cmd.Array[2:] {
-		listLength, err := redisInstance.PushList(cmd.Array[1].String, cmd.Array[i])
+	for _, val := range cmd.Array[2:] {
+		listLength, err := redisInstance.PushList(cmd.Array[1].String, val)
 		if err != nil {
 			return resp.GenericError(fmt.Sprintf("error handling rpush: %v", err))
 		}
