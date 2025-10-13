@@ -10,8 +10,6 @@ import (
 
 type SupportedCommand string
 
-const RESPONSE_OK = "+OK\r\n"
-
 var parser = resp.GetParser()
 var redisInstance = redis.GetInstance()
 

@@ -49,5 +49,10 @@ func HandleSET(cmd *resp.RESPValue) string {
 		return resp.GenericError("error handling SET")
 	}
 
-	return RESPONSE_OK
+	response := &resp.RESPValue{
+		Type:   resp.SimpleString,
+		String: "OK",
+	}
+
+	return response.ToRESP()
 }
