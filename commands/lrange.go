@@ -26,9 +26,16 @@ func HandleLRANGE(cmd *resp.RESPValue) string {
 		return resp.GenericError(fmt.Sprintf("error retrieving list '%s'", listKey))
 	}
 
-	if stop >= len(list.Array) {
-		stop = len(list.Array) - 1
+	if start < 0 {
+		start = len(list.Array) + start
 	}
+
+	if stop < 0 {
+		stop = len(list.Array) + stop
+	}
+
+	start = max(start, 0)
+	stop = min(stop, len(list.Array)-1)
 
 	response := &resp.RESPValue{
 		Type: resp.Array,
