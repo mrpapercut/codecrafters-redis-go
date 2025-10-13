@@ -26,22 +26,22 @@ func HandleCommand(rawcmd []byte) string {
 
 		cmd := strings.ToLower(parsed.Array[0].String)
 
-		switch SupportedCommand(cmd) {
-		case PING:
-			return HandlePING(parsed)
-		case ECHO:
-			return HandleECHO(parsed)
-		case SET:
-			return HandleSET(parsed)
-		case GET:
-			return HandleGET(parsed)
-		case RPUSH:
-			return HandleRPUSH(parsed)
-		case LLEN:
-			return HandleLLEN(parsed)
-		default:
+		supportedCommands := map[SupportedCommand]func(*resp.RESPValue) string{
+			PING:   HandlePING,
+			ECHO:   HandleECHO,
+			SET:    HandleSET,
+			GET:    HandleGET,
+			RPUSH:  HandleRPUSH,
+			LRANGE: HandleLRANGE,
+			LLEN:   HandleLLEN,
+		}
+
+		fn, ok := supportedCommands[SupportedCommand(cmd)]
+		if !ok {
 			return resp.SyntaxError(fmt.Sprintf("unsupported command '%s'", cmd))
 		}
+
+		return fn(parsed)
 	default:
 		return resp.SyntaxError(fmt.Sprintf("invalid syntax '%s'", rawcmd))
 	}
