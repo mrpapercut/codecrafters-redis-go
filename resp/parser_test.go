@@ -8,10 +8,6 @@ import (
 
 var parser = GetParser()
 
-func TestMain(m *testing.M) {
-	m.Run()
-}
-
 func TestParseSimpleString(t *testing.T) {
 	raw := "+OK\r\n"
 	parsed := parser.ParseCommand(raw)
