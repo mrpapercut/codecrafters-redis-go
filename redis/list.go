@@ -12,6 +12,7 @@ const (
 	LIST_REMOVE  internalOperation = "LIST_REMOVE"
 	LIST_APPEND  internalOperation = "LIST_APPEND"
 	LIST_PREPEND internalOperation = "LIST_PREPEND"
+	LIST_POP     internalOperation = "LIST_POP"
 )
 
 func (r *Redis) GetList(key string) (*resp.RESPValue, error) {
@@ -119,6 +120,8 @@ func (r *Redis) AppendList(key string, value *resp.RESPValue) (*resp.RESPValue, 
 
 	response := <-responseChan
 
+	r.NotifyWaiters(key)
+
 	return response.value, response.err
 }
 
@@ -162,6 +165,8 @@ func (r *Redis) PrependList(key string, value *resp.RESPValue) (*resp.RESPValue,
 
 	response := <-responseChan
 
+	r.NotifyWaiters(key)
+
 	return response.value, response.err
 }
 
@@ -194,4 +199,50 @@ func (r *Redis) handlePrependList(req internalRequest) {
 	response.Integer = int64(len(r.storage[req.key].List))
 
 	req.responseChan <- internalResponse{value: response}
+}
+
+func (r *Redis) PopList(key string) (*resp.RESPValue, error) {
+	responseChan := make(chan internalResponse)
+
+	r.requestChan <- internalRequest{
+		operation:    LIST_POP,
+		key:          key,
+		responseChan: responseChan,
+	}
+
+	response := <-responseChan
+
+	return response.value, response.err
+}
+
+func (r *Redis) handlePopList(req internalRequest) {
+	value, ok := r.storage[req.key]
+	if !ok {
+		req.responseChan <- internalResponse{value: resp.NullBulkstring()}
+		return
+	}
+
+	list := &resp.RESPValue{
+		Type:  resp.Array,
+		Array: value.List,
+	}
+
+	if len(list.Array) == 0 {
+		req.responseChan <- internalResponse{value: resp.NullBulkstring()}
+		return
+	}
+
+	popped := list.Array[0]
+	list.Array = list.Array[1:]
+
+	if len(list.Array) == 0 {
+		r.cleanupKey(req.key)
+	} else {
+		r.storage[req.key] = &StorageField{
+			Type: ListStorage,
+			List: list.Array,
+		}
+	}
+
+	req.responseChan <- internalResponse{value: popped}
 }

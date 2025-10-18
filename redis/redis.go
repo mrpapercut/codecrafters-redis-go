@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -38,6 +39,7 @@ type internalResponse struct {
 type Redis struct {
 	storage     map[string]*StorageField
 	expirations map[string]*time.Time
+	waiters     map[string][]chan *resp.RESPValue
 	requestChan chan internalRequest
 }
 
@@ -53,6 +55,7 @@ func GetInstance() *Redis {
 			redisInstance = &Redis{
 				storage:     make(map[string]*StorageField),
 				expirations: make(map[string]*time.Time),
+				waiters:     make(map[string][]chan *resp.RESPValue),
 				requestChan: make(chan internalRequest),
 			}
 
@@ -61,6 +64,44 @@ func GetInstance() *Redis {
 	}
 
 	return redisInstance
+}
+
+func (r *Redis) AddWaiter(key string, ch chan *resp.RESPValue) {
+	r.waiters[key] = append(r.waiters[key], ch)
+}
+
+func (r *Redis) RemoveWaiter(key string, ch chan *resp.RESPValue) {
+	list := r.waiters[key]
+
+	for i, c := range list {
+		if c == ch {
+			r.waiters[key] = append(list[:i], list[i+1:]...)
+			break
+		}
+	}
+
+	if len(r.waiters[key]) == 0 {
+		delete(r.waiters, key)
+	}
+}
+
+func (r *Redis) NotifyWaiters(key string) {
+	list := r.waiters[key]
+
+	if len(list) > 0 {
+		value, err := r.PopList(key)
+		if err != nil {
+			fmt.Printf("error popping list: %v\n", err)
+			return
+		}
+
+		ch := list[0]
+		r.waiters[key] = list[1:]
+
+		go func() {
+			ch <- value
+		}()
+	}
 }
 
 func (r *Redis) runLoop() {
@@ -80,6 +121,8 @@ func (r *Redis) runLoop() {
 			r.handleAppendList(request)
 		case LIST_PREPEND:
 			r.handlePrependList(request)
+		case LIST_POP:
+			r.handlePopList(request)
 		}
 	}
 }
