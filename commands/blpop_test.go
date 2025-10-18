@@ -59,7 +59,7 @@ func TestHandleBLPOPWithWaiting(t *testing.T) {
 
 func TestHandleBLPOPWithTimeout(t *testing.T) {
 	// BLPOP blpop_key_timeout 0.5
-	blpopMessage := []byte("*3\r\n$5\r\nBLPOP\r\n$17\r\nblpop_key_timeout\r\n$1\r\n2\r\n")
+	blpopMessage := []byte("*3\r\n$5\r\nBLPOP\r\n$17\r\nblpop_key_timeout\r\n$3\r\n0.5\r\n")
 	blpopExpected := "*-1\r\n"
 
 	blpopResponse := make(chan string, 1)

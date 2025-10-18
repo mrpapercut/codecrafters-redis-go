@@ -42,7 +42,7 @@ func HandleBLPOP(cmd *resp.RESPValue) string {
 		return response.ToRESP()
 	}
 
-	timeout := time.Duration(timeoutArg) * time.Second
+	timeout := time.Duration(timeoutArg * float64(time.Second))
 
 	ch := make(chan *resp.RESPValue)
 
