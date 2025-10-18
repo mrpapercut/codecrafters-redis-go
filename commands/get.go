@@ -16,5 +16,5 @@ func HandleGET(cmd *resp.RESPValue) string {
 		return nullObj.ToRESP()
 	}
 
-	return res
+	return res.ToRESP()
 }

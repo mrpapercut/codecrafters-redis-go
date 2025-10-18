@@ -9,7 +9,7 @@ import (
 const LPUSH SupportedCommand = "lpush"
 
 func HandleLPUSH(cmd *resp.RESPValue) string {
-	lastLength := 0
+	var lastLength int64 = 0
 
 	for _, val := range cmd.Array[2:] {
 		listLength, err := redisInstance.PrependList(cmd.Array[1].String, val)
@@ -17,12 +17,12 @@ func HandleLPUSH(cmd *resp.RESPValue) string {
 			return resp.GenericError(fmt.Sprintf("error handling rpush: %v", err))
 		}
 
-		lastLength = listLength
+		lastLength = listLength.Integer
 	}
 
 	resp := &resp.RESPValue{
 		Type:    resp.Integer,
-		Integer: int64(lastLength),
+		Integer: lastLength,
 	}
 
 	return resp.ToRESP()

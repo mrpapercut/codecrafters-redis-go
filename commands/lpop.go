@@ -35,7 +35,7 @@ func HandleLPOP(cmd *resp.RESPValue) string {
 	if len(list.Array) == 0 {
 		redisInstance.RemoveList(key)
 	} else {
-		redisInstance.SetList(key, list.Array)
+		redisInstance.SetList(key, list)
 	}
 
 	return popped.ToRESP()
@@ -71,7 +71,7 @@ func handleLPOPMultiple(cmd *resp.RESPValue) string {
 	if len(list.Array) == 0 {
 		redisInstance.RemoveList(key)
 	} else {
-		redisInstance.SetList(key, list.Array)
+		redisInstance.SetList(key, list)
 	}
 
 	response := &resp.RESPValue{

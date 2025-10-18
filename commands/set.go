@@ -13,7 +13,7 @@ import (
 const SET SupportedCommand = "set"
 
 func HandleSET(cmd *resp.RESPValue) string {
-	opts := make([]redis.CommandSetOption, 0)
+	opts := make([]redis.CommandOption, 0)
 
 	for i := 0; i < len(cmd.Array); i++ {
 		option := strings.ToLower(cmd.Array[i].String)
