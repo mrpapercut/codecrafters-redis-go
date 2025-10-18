@@ -4,19 +4,45 @@ import (
 	"fmt"
 )
 
+const KEY_GET internalOperation = "KEY_GET"
+
 func (r *Redis) Get(key string) (string, error) {
-	if r.isExpired(key) {
-		return "", fmt.Errorf("key not found")
+	responseChan := make(chan internalResponse)
+
+	r.requestChan <- internalRequest{
+		operation:    KEY_GET,
+		key:          key,
+		responseChan: responseChan,
 	}
 
-	value, ok := r.storage[key]
+	response := <-responseChan
+
+	if response.err != nil {
+		return "", response.err
+	}
+
+	return response.value.ToRESP(), nil
+}
+
+func (r *Redis) handleGet(req internalRequest) {
+	if r.isExpired(req.key) {
+		req.responseChan <- internalResponse{err: fmt.Errorf("key not found")}
+		return
+	}
+
+	value, ok := r.storage[req.key]
 	if !ok {
-		return "", fmt.Errorf("key not found")
+		req.responseChan <- internalResponse{err: fmt.Errorf("key not found")}
+		return
 	}
 
 	if value.Type != KeyStorage {
-		return "", fmt.Errorf("operation against a key holding the wrong kind of value")
+		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
+		return
 	}
 
-	return value.Key.ToRESP(), nil
+	req.responseChan <- internalResponse{
+		value: value.Key,
+		err:   nil,
+	}
 }

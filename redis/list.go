@@ -6,84 +6,192 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
+const (
+	LIST_GET     internalOperation = "LIST_GET"
+	LIST_SET     internalOperation = "LIST_SET"
+	LIST_REMOVE  internalOperation = "LIST_REMOVE"
+	LIST_APPEND  internalOperation = "LIST_APPEND"
+	LIST_PREPEND internalOperation = "LIST_PREPEND"
+)
+
 func (r *Redis) GetList(key string) (*resp.RESPValue, error) {
-	value, ok := r.storage[key]
+	responseChan := make(chan internalResponse)
+
+	r.requestChan <- internalRequest{
+		operation:    LIST_GET,
+		key:          key,
+		responseChan: responseChan,
+	}
+
+	response := <-responseChan
+
+	return response.value, response.err
+}
+
+func (r *Redis) handleGetList(req internalRequest) {
+	value, ok := r.storage[req.key]
 	if !ok {
-		return &resp.RESPValue{
-			Type: resp.Array,
-		}, nil
+		req.responseChan <- internalResponse{
+			value: &resp.RESPValue{
+				Type: resp.Array,
+			},
+			err: nil,
+		}
+		return
 	}
 
 	if value.Type != ListStorage {
-		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
+		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
+		return
 	}
 
-	return &resp.RESPValue{
-		Type:  resp.Array,
-		Array: value.List,
-	}, nil
+	req.responseChan <- internalResponse{
+		value: &resp.RESPValue{
+			Type:  resp.Array,
+			Array: value.List,
+		},
+		err: nil,
+	}
 }
 
-func (r *Redis) SetList(key string, items []*resp.RESPValue) error {
-	value, ok := r.storage[key]
+func (r *Redis) SetList(key string, list *resp.RESPValue) error {
+	responseChan := make(chan internalResponse)
+
+	r.requestChan <- internalRequest{
+		operation:    LIST_SET,
+		key:          key,
+		value:        list,
+		responseChan: responseChan,
+	}
+
+	response := <-responseChan
+
+	return response.err
+}
+
+func (r *Redis) handleSetList(req internalRequest) {
+	value, ok := r.storage[req.key]
 	if ok && value.Type != ListStorage {
-		return fmt.Errorf("operation against a key holding the wrong kind of value")
+		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
+		return
 	}
 
-	r.storage[key] = &StorageField{
+	r.storage[req.key] = &StorageField{
 		Type: ListStorage,
-		List: items,
+		List: req.value.Array,
 	}
 
-	return nil
+	req.responseChan <- internalResponse{}
 }
 
 func (r *Redis) RemoveList(key string) error {
-	_, ok := r.storage[key]
+	responseChan := make(chan internalResponse)
+
+	r.requestChan <- internalRequest{
+		operation:    LIST_REMOVE,
+		key:          key,
+		responseChan: responseChan,
+	}
+
+	response := <-responseChan
+
+	return response.err
+}
+
+func (r *Redis) handleRemoveList(req internalRequest) {
+	_, ok := r.storage[req.key]
 	if ok {
-		r.cleanupKey(key)
+		r.cleanupKey(req.key)
 	}
 
-	return nil
+	req.responseChan <- internalResponse{}
 }
 
-func (r *Redis) AppendList(key string, val *resp.RESPValue) (int, error) {
-	value, ok := r.storage[key]
+func (r *Redis) AppendList(key string, value *resp.RESPValue) (*resp.RESPValue, error) {
+	responseChan := make(chan internalResponse)
 
-	if !ok || r.isExpired(key) {
-		r.storage[key] = &StorageField{
+	r.requestChan <- internalRequest{
+		operation:    LIST_APPEND,
+		key:          key,
+		value:        value,
+		responseChan: responseChan,
+	}
+
+	response := <-responseChan
+
+	return response.value, response.err
+}
+
+func (r *Redis) handleAppendList(req internalRequest) {
+	response := &resp.RESPValue{
+		Type: resp.Integer,
+	}
+
+	value, ok := r.storage[req.key]
+
+	if !ok || r.isExpired(req.key) {
+		r.storage[req.key] = &StorageField{
 			Type: ListStorage,
-			List: []*resp.RESPValue{val},
+			List: []*resp.RESPValue{req.value},
 		}
 	} else {
 		if value.Type != ListStorage {
-			return 0, fmt.Errorf("operation against a key holding the wrong kind of value")
+			response.Integer = 0
+			req.responseChan <- internalResponse{value: response, err: fmt.Errorf("operation against a key holding the wrong kind of value")}
+
+			return
 		}
 
-		r.storage[key].List = append(r.storage[key].List, val)
+		r.storage[req.key].List = append(r.storage[req.key].List, req.value)
 	}
 
-	return len(r.storage[key].List), nil
+	response.Integer = int64(len(r.storage[req.key].List))
+
+	req.responseChan <- internalResponse{value: response}
 }
 
-func (r *Redis) PrependList(key string, val *resp.RESPValue) (int, error) {
-	value, ok := r.storage[key]
+func (r *Redis) PrependList(key string, value *resp.RESPValue) (*resp.RESPValue, error) {
+	responseChan := make(chan internalResponse)
 
-	if !ok || r.isExpired(key) {
-		r.storage[key] = &StorageField{
+	r.requestChan <- internalRequest{
+		operation:    LIST_PREPEND,
+		key:          key,
+		value:        value,
+		responseChan: responseChan,
+	}
+
+	response := <-responseChan
+
+	return response.value, response.err
+}
+
+func (r *Redis) handlePrependList(req internalRequest) {
+	response := &resp.RESPValue{
+		Type: resp.Integer,
+	}
+
+	value, ok := r.storage[req.key]
+
+	if !ok || r.isExpired(req.key) {
+		r.storage[req.key] = &StorageField{
 			Type: ListStorage,
-			List: []*resp.RESPValue{val},
+			List: []*resp.RESPValue{req.value},
 		}
 	} else {
 		if value.Type != ListStorage {
-			return 0, fmt.Errorf("operation against a key holding the wrong kind of value")
+			response.Integer = 0
+			req.responseChan <- internalResponse{value: response, err: fmt.Errorf("operation against a key holding the wrong kind of value")}
+
+			return
 		}
 
-		oldList := r.storage[key].List
+		oldList := r.storage[req.key].List
 
-		r.storage[key].List = []*resp.RESPValue{val}
-		r.storage[key].List = append(r.storage[key].List, oldList...)
+		r.storage[req.key].List = []*resp.RESPValue{req.value}
+		r.storage[req.key].List = append(r.storage[req.key].List, oldList...)
 	}
 
-	return len(r.storage[key].List), nil
+	response.Integer = int64(len(r.storage[req.key].List))
+
+	req.responseChan <- internalResponse{value: response}
 }
