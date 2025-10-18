@@ -1,6 +1,8 @@
 package commands
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestHandleLPOP(t *testing.T) {
 	// RPUSH lpop_key a b c d
