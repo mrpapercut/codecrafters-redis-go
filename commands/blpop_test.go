@@ -26,8 +26,8 @@ func TestHandleBLPOPWithoutWaiting(t *testing.T) {
 }
 
 func TestHandleBLPOPWithWaiting(t *testing.T) {
-	// BLPOP blpop_key_wait 0
-	blpopMessage := []byte("*3\r\n$5\r\nBLPOP\r\n$14\r\nblpop_key_wait\r\n$1\r\n0\r\n")
+	// BLPOP blpop_key_wait 1
+	blpopMessage := []byte("*3\r\n$5\r\nBLPOP\r\n$14\r\nblpop_key_wait\r\n$1\r\n1\r\n")
 	blpopExpected := "*2\r\n$14\r\nblpop_key_wait\r\n$1\r\na\r\n"
 
 	blpopResponse := make(chan string, 1)
@@ -58,7 +58,7 @@ func TestHandleBLPOPWithWaiting(t *testing.T) {
 }
 
 func TestHandleBLPOPWithTimeout(t *testing.T) {
-	// BLPOP blpop_key_timeout 2
+	// BLPOP blpop_key_timeout 0.5
 	blpopMessage := []byte("*3\r\n$5\r\nBLPOP\r\n$17\r\nblpop_key_timeout\r\n$1\r\n2\r\n")
 	blpopExpected := "*-1\r\n"
 
@@ -68,7 +68,7 @@ func TestHandleBLPOPWithTimeout(t *testing.T) {
 		blpopResponse <- HandleCommand(blpopMessage)
 	}()
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// LPUSH blpop_key_wait
 	rpushMessage := []byte("*3\r\n$5\r\nRPUSH\r\n$14\r\nblpop_key_wait\r\n$1\r\na\r\n")
@@ -84,7 +84,7 @@ func TestHandleBLPOPWithTimeout(t *testing.T) {
 		if response != blpopExpected {
 			t.Fatalf("expected response to be '%s', got '%s' instead", blpopExpected, response)
 		}
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
 		t.Fatal("BLPOP did not unblock")
 	}
 }

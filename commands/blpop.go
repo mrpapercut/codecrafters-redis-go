@@ -12,9 +12,9 @@ const BLPOP SupportedCommand = "blpop"
 func HandleBLPOP(cmd *resp.RESPValue) string {
 	key := cmd.Array[1].String
 
-	timeoutArg, err := strconv.Atoi(cmd.Array[2].String)
+	timeoutArg, err := strconv.ParseFloat(cmd.Array[2].String, 64)
 	if err != nil {
-		return resp.SyntaxError("BLPOP argument not an integer")
+		return resp.SyntaxError("BLPOP argument not an integer or double")
 	}
 	if timeoutArg == 0 {
 		timeoutArg = 300
