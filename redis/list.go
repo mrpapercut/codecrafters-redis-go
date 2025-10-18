@@ -54,13 +54,13 @@ func (r *Redis) handleGetList(req internalRequest) {
 	}
 }
 
-func (r *Redis) SetList(key string, list *resp.RESPValue) error {
+func (r *Redis) SetList(key string, value *resp.RESPValue) error {
 	responseChan := make(chan internalResponse)
 
 	r.requestChan <- internalRequest{
 		operation:    LIST_SET,
 		key:          key,
-		value:        list,
+		value:        value,
 		responseChan: responseChan,
 	}
 

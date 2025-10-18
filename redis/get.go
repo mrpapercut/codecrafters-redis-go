@@ -2,11 +2,13 @@ package redis
 
 import (
 	"fmt"
+
+	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
 const KEY_GET internalOperation = "KEY_GET"
 
-func (r *Redis) Get(key string) (string, error) {
+func (r *Redis) Get(key string) (*resp.RESPValue, error) {
 	responseChan := make(chan internalResponse)
 
 	r.requestChan <- internalRequest{
@@ -17,11 +19,7 @@ func (r *Redis) Get(key string) (string, error) {
 
 	response := <-responseChan
 
-	if response.err != nil {
-		return "", response.err
-	}
-
-	return response.value.ToRESP(), nil
+	return response.value, response.err
 }
 
 func (r *Redis) handleGet(req internalRequest) {
