@@ -8,24 +8,14 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
-type StorageType string
-
-const (
-	KeyStorage  StorageType = "key"
-	ListStorage StorageType = "list"
-)
-
-type StorageField struct {
-	Type StorageType
-	Key  *resp.RESPValue
-	List []*resp.RESPValue
-}
+type CommandOption func(*commandContextOption)
 
 type internalOperation string
 
 type internalRequest struct {
 	operation    internalOperation
 	key          string
+	id           string
 	value        *resp.RESPValue
 	opts         []CommandOption
 	responseChan chan internalResponse
@@ -123,6 +113,8 @@ func (r *Redis) runLoop() {
 			r.handlePrependList(request)
 		case LIST_POP:
 			r.handlePopList(request)
+		case STREAM_APPEND:
+			r.handleAppendStream(request)
 		}
 	}
 }
