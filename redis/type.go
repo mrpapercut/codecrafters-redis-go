@@ -18,6 +18,8 @@ func (r *Redis) Type(key string) *resp.RESPValue {
 		response.String = "string"
 	case ListStorage:
 		response.String = "list"
+	case StreamStorage:
+		response.String = "stream"
 	}
 
 	return response
