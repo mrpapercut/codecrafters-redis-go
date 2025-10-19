@@ -52,3 +52,23 @@ func TestHandleTypeList(t *testing.T) {
 		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
 	}
 }
+
+func TestHandleTypeStream(t *testing.T) {
+	// XADD type_key_stream 1-1 type_key type_value
+	message := []byte("*5\r\n$4\r\nXADD\r\n$15\r\ntype_key_stream\r\n$3\r\n1-1\r\n$8\r\ntype_key\r\n$10\r\ntype_value\r\n")
+	expected := "$3\r\n1-1\r\n"
+
+	response := HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	// TYPE type_key_stream
+	message = []byte("*2\r\n$4\r\nTYPE\r\n$15\r\ntype_key_stream\r\n")
+	expected = "+stream\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+}
