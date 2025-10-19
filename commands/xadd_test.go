@@ -15,6 +15,15 @@ func TestHandleXADD(t *testing.T) {
 	if response != expected {
 		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
 	}
+
+	// XADD stream_key 1526919030474-1 temperature 40 humidity 92
+	message = []byte("*7\r\n$4\r\nXADD\r\n$10\r\nstream_key\r\n$15\r\n1526919030474-1\r\n$11\r\ntemperature\r\n$2\r\n40\r\n$8\r\nhumidity\r\n$2\r\n92\r\n")
+	expected = "$15\r\n1526919030474-1\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
 }
 
 func TestHandleXADDAutogenerateID(t *testing.T) {

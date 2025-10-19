@@ -60,7 +60,7 @@ func (r *Redis) handleAppendStream(req internalRequest) {
 	}
 
 	// Check if ms part of id is latest
-	if entryIDms >= 0 && r.storage[req.key].Stream.LastEntry != nil && entryIDms <= r.storage[req.key].Stream.LastEntry.Time {
+	if entryIDms >= 0 && r.storage[req.key].Stream.LastEntry != nil && entryIDms < r.storage[req.key].Stream.LastEntry.Time {
 		req.responseChan <- internalResponse{err: fmt.Errorf("The ID specified in XADD is equal or smaller than the target stream top item")}
 		return
 	}
