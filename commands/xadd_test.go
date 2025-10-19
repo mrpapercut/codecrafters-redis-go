@@ -1,0 +1,88 @@
+package commands
+
+import (
+	"fmt"
+	"testing"
+	"time"
+)
+
+func TestHandleXADD(t *testing.T) {
+	// XADD stream_key 1526919030474-0 temperature 36 humidity 95
+	message := []byte("*7\r\n$4\r\nXADD\r\n$10\r\nstream_key\r\n$15\r\n1526919030474-0\r\n$11\r\ntemperature\r\n$2\r\n36\r\n$8\r\nhumidity\r\n$2\r\n95\r\n")
+	expected := "$15\r\n1526919030474-0\r\n"
+
+	response := HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+}
+
+func TestHandleXADDAutogenerateID(t *testing.T) {
+	// XADD stream_key * temperature 36 humidity 95
+	message := []byte("*7\r\n$4\r\nXADD\r\n$10\r\nstream_key\r\n$1\r\n*\r\n$11\r\ntemperature\r\n$2\r\n36\r\n$8\r\nhumidity\r\n$2\r\n95\r\n")
+	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
+	expected := fmt.Sprintf("$%d\r\n%s-0\r\n", len(ts)+2, ts)
+
+	response := HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+}
+
+func TestHandleXADDInvalidIDs(t *testing.T) {
+	// XADD stream_key_invalid abc-0 key1 value1
+	message := []byte("*5\r\n$4\r\nXADD\r\n$18\r\nstream_key_invalid\r\n$5\r\nabc-0\r\n$4\r\nkey1\r\n$6\r\nvalue1\r\n")
+	expected := "-ERR Invalid stream ID specified as stream command argument\r\n"
+
+	response := HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	// XADD stream_key_invalid 0-0 key2 value2
+	message = []byte("*5\r\n$4\r\nXADD\r\n$18\r\nstream_key_invalid\r\n$3\r\n0-0\r\n$4\r\nkey2\r\n$6\r\nvalue2\r\n")
+	expected = "-ERR The ID specified in XADD must be greater than 0-0\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	// Invalid ms ids
+	// XADD stream_key_invalid 5-0 key3 value3
+	message = []byte("*5\r\n$4\r\nXADD\r\n$18\r\nstream_key_invalid\r\n$3\r\n5-0\r\n$4\r\nkey3\r\n$6\r\nvalue3\r\n")
+	expected = "$3\r\n5-0\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	// XADD stream_key_invalid 4-0 key4 value4
+	message = []byte("*5\r\n$4\r\nXADD\r\n$18\r\nstream_key_invalid\r\n$3\r\n4-0\r\n$4\r\nkey4\r\n$6\r\nvalue4\r\n")
+	expected = "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	// Invalid sequence ids
+	// XADD stream_key_invalid 6-3 key5 value5
+	message = []byte("*5\r\n$4\r\nXADD\r\n$18\r\nstream_key_invalid\r\n$3\r\n6-3\r\n$4\r\nkey5\r\n$6\r\nvalue5\r\n")
+	expected = "$3\r\n6-3\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	// XADD stream_key_invalid 6-2 key6 value6
+	message = []byte("*5\r\n$4\r\nXADD\r\n$18\r\nstream_key_invalid\r\n$3\r\n6-2\r\n$4\r\nkey6\r\n$6\r\nvalue6\r\n")
+	expected = "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+}
