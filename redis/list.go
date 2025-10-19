@@ -41,7 +41,7 @@ func (r *Redis) handleGetList(req internalRequest) {
 		return
 	}
 
-	if value.Type != ListStorage {
+	if !value.IsList() {
 		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 		return
 	}
@@ -72,7 +72,7 @@ func (r *Redis) SetList(key string, value *resp.RESPValue) error {
 
 func (r *Redis) handleSetList(req internalRequest) {
 	value, ok := r.storage[req.key]
-	if ok && value.Type != ListStorage {
+	if ok && !value.IsList() {
 		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 		return
 	}
@@ -138,7 +138,7 @@ func (r *Redis) handleAppendList(req internalRequest) {
 			List: []*resp.RESPValue{req.value},
 		}
 	} else {
-		if value.Type != ListStorage {
+		if !value.IsList() {
 			response.Integer = 0
 			req.responseChan <- internalResponse{value: response, err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 
@@ -183,7 +183,7 @@ func (r *Redis) handlePrependList(req internalRequest) {
 			List: []*resp.RESPValue{req.value},
 		}
 	} else {
-		if value.Type != ListStorage {
+		if !value.IsList() {
 			response.Integer = 0
 			req.responseChan <- internalResponse{value: response, err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 
