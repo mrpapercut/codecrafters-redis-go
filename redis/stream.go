@@ -54,46 +54,33 @@ func (r *Redis) handleAppendStream(req internalRequest) {
 		return
 	}
 
-	if entryIDms == 0 && entryIDseq == 0 {
-		req.responseChan <- internalResponse{err: fmt.Errorf("The ID specified in XADD must be greater than 0-0")}
+	validMS, validSeq, err := r.validateStreamEntryID(req.key, entryIDms, entryIDseq)
+	if err != nil {
+		req.responseChan <- internalResponse{err: err}
 		return
-	}
-
-	// Check if ms part of id is latest
-	if entryIDms >= 0 && r.storage[req.key].Stream.LastEntry != nil && entryIDms < r.storage[req.key].Stream.LastEntry.Time {
-		req.responseChan <- internalResponse{err: fmt.Errorf("The ID specified in XADD is equal or smaller than the target stream top item")}
-		return
-	}
-
-	// Check if seq part of id is latest
-	if entryIDseq >= 0 {
-		_, ok = r.storage[req.key].Stream.Entries[entryIDms]
-		if ok && entryIDseq <= r.storage[req.key].Stream.LastEntry.Sequence {
-			req.responseChan <- internalResponse{err: fmt.Errorf("The ID specified in XADD is equal or smaller than the target stream top item")}
-			return
-		}
-
-		if !ok {
-			r.storage[req.key].Stream.Entries[entryIDms] = make(map[int64][]*resp.RESPValue)
-		}
 	}
 
 	// All good, create the stream in storage
-	r.storage[req.key].Stream.Entries[entryIDms][entryIDseq] = make([]*resp.RESPValue, 0)
-	r.storage[req.key].Stream.Entries[entryIDms][entryIDseq] = append(r.storage[req.key].Stream.Entries[entryIDms][entryIDseq], &resp.RESPValue{
+	_, ok = r.storage[req.key].Stream.Entries[validMS]
+	if !ok {
+		r.storage[req.key].Stream.Entries[validMS] = make(map[int64][]*resp.RESPValue)
+	}
+
+	r.storage[req.key].Stream.Entries[validMS][validSeq] = make([]*resp.RESPValue, 0)
+	r.storage[req.key].Stream.Entries[validMS][validSeq] = append(r.storage[req.key].Stream.Entries[validMS][validSeq], &resp.RESPValue{
 		Type: resp.Map,
 		Map:  req.value.Map,
 	})
 
 	// Store latest entry in stream for easier lookup
 	r.storage[req.key].Stream.LastEntry = &StreamEntryID{
-		Time:     entryIDms,
-		Sequence: entryIDseq,
+		Time:     validMS,
+		Sequence: validSeq,
 	}
 
 	response := &resp.RESPValue{
 		Type:   resp.BulkString,
-		String: fmt.Sprintf("%d-%d", entryIDms, entryIDseq),
+		String: fmt.Sprintf("%d-%d", validMS, validSeq),
 	}
 
 	req.responseChan <- internalResponse{value: response}
@@ -124,4 +111,30 @@ func (r *Redis) parseStreamEntryID(id string) (int64, int64, error) {
 	}
 
 	return ms, seq, nil
+}
+
+func (r *Redis) validateStreamEntryID(key string, entryIDms int64, entryIDseq int64) (int64, int64, error) {
+	if entryIDms == 0 && entryIDseq == 0 {
+		return -1, -1, fmt.Errorf("The ID specified in XADD must be greater than 0-0")
+	}
+
+	if r.storage[key].Stream.LastEntry != nil && entryIDms < r.storage[key].Stream.LastEntry.Time {
+		return -1, -1, fmt.Errorf("The ID specified in XADD is equal or smaller than the target stream top item")
+	}
+
+	if entryIDseq < 0 {
+		if r.storage[key].Stream.LastEntry != nil && r.storage[key].Stream.LastEntry.Time == entryIDms {
+			entryIDseq = r.storage[key].Stream.LastEntry.Sequence + 1
+		} else if entryIDms == 0 {
+			entryIDseq = 1
+		} else {
+			entryIDseq = 0
+		}
+	}
+
+	if r.storage[key].Stream.LastEntry != nil && entryIDseq <= r.storage[key].Stream.LastEntry.Sequence {
+		return -1, -1, fmt.Errorf("The ID specified in XADD is equal or smaller than the target stream top item")
+	}
+
+	return entryIDms, entryIDseq, nil
 }
