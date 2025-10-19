@@ -132,7 +132,7 @@ func (r *Redis) validateStreamEntryID(key string, entryIDms int64, entryIDseq in
 		}
 	}
 
-	if r.storage[key].Stream.LastEntry != nil && entryIDseq <= r.storage[key].Stream.LastEntry.Sequence {
+	if r.storage[key].Stream.LastEntry != nil && r.storage[key].Stream.LastEntry.Time == entryIDms && entryIDseq <= r.storage[key].Stream.LastEntry.Sequence {
 		return -1, -1, fmt.Errorf("The ID specified in XADD is equal or smaller than the target stream top item")
 	}
 
