@@ -1,7 +1,10 @@
 package redis
 
+//lint:file-ignore ST1005 errors are in Redis format
+
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +17,101 @@ import (
  * where sequence ids are the index of the final slice.
  */
 
+const STREAM_RANGE_GET internalOperation = "STREAM_RANGE_GET"
 const STREAM_APPEND internalOperation = "STREAM_APPEND"
+
+type XRangeStartEnd struct {
+	StartMS  int64
+	StartSeq int64
+	EndMS    int64
+	EndSeq   int64
+}
+
+func (r *Redis) GetStreamsByRange(key string, xrangeRange *XRangeStartEnd) (*resp.RESPValue, error) {
+	// TODO fix async
+	stream, ok := r.storage[key]
+	if !ok {
+		// return empty array or something
+		return nil, fmt.Errorf("stream not found")
+	}
+
+	if !r.storage[key].IsStream() {
+		// req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
+		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
+	}
+
+	response := &resp.RESPValue{
+		Type:  resp.Array,
+		Array: make([]*resp.RESPValue, 0),
+	}
+
+	for idx, sequences := range stream.Stream.Entries {
+		if idx < xrangeRange.StartMS || idx > xrangeRange.EndMS {
+			continue
+		}
+
+		for seq, entries := range sequences {
+			if idx == xrangeRange.StartMS && seq < xrangeRange.StartSeq {
+				continue
+			}
+
+			if len(entries) == 0 {
+				continue
+			}
+
+			sequence := &resp.RESPValue{
+				Type:  resp.Array,
+				Array: make([]*resp.RESPValue, 0),
+			}
+
+			sequence.Array = append(sequence.Array, &resp.RESPValue{
+				Type:   resp.BulkString,
+				String: fmt.Sprintf("%d-%d", idx, seq),
+			})
+
+			for _, entry := range entries {
+				sequence.Array = append(sequence.Array, r.getStreamValuesAsSlice(entry))
+			}
+
+			response.Array = append(response.Array, sequence)
+		}
+	}
+
+	r.sortStreams(response)
+
+	return response, nil
+}
+
+func (r *Redis) getStreamValuesAsSlice(entry *resp.RESPValue) *resp.RESPValue {
+	arr := &resp.RESPValue{
+		Type:  resp.Array,
+		Array: make([]*resp.RESPValue, 0),
+	}
+
+	for k, v := range entry.Map {
+		arr.Array = append(arr.Array, k, v)
+	}
+
+	return arr
+}
+
+func (r *Redis) sortStreams(streams *resp.RESPValue) {
+	slices.SortFunc(streams.Array, func(a *resp.RESPValue, b *resp.RESPValue) int {
+		partsA := strings.Split(a.Array[0].String, "-")
+		partsB := strings.Split(b.Array[0].String, "-")
+
+		msA, _ := strconv.Atoi(partsA[0])
+		msB, _ := strconv.Atoi(partsB[0])
+		seqA, _ := strconv.Atoi(partsA[1])
+		seqB, _ := strconv.Atoi(partsB[1])
+
+		if msA == msB {
+			return seqA - seqB
+		}
+
+		return msA - msB
+	})
+}
 
 func (r *Redis) AppendStream(key string, id string, value *resp.RESPValue) (*resp.RESPValue, error) {
 	responseChan := make(chan internalResponse)
@@ -33,9 +130,9 @@ func (r *Redis) AppendStream(key string, id string, value *resp.RESPValue) (*res
 }
 
 func (r *Redis) handleAppendStream(req internalRequest) {
-	stream, ok := r.storage[req.key]
+	_, ok := r.storage[req.key]
 	if !ok {
-		stream = &StorageField{
+		stream := &StorageField{
 			Type:   StreamStorage,
 			Stream: &StreamField{Entries: make(map[int64]map[int64][]*resp.RESPValue)},
 		}
