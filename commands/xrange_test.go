@@ -1,6 +1,9 @@
 package commands
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestHandleXRANGE(t *testing.T) {
 	// XADD xrange_key 0-1 key1 value1
@@ -36,7 +39,7 @@ func TestHandleXRANGE(t *testing.T) {
 
 	response = HandleCommand(message)
 	if response != expected {
-		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+		t.Fatalf("expected response to be '%s', got '%s' instead", strings.ReplaceAll(expected, "\r\n", "\\r\\n"), response)
 	}
 }
 

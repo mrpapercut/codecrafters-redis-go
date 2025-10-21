@@ -1,10 +1,13 @@
 package commands
 
+//lint:file-ignore ST1005 errors are in Redis format
+
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/codecrafters-io/redis-starter-go/redis"
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
@@ -17,77 +20,77 @@ func HandleXRANGE(cmd *resp.RESPValue) string {
 
 	key := cmd.Array[1].String
 
-	startIndex, startSeq, endIndex, endSeq, err := parseXRANGEStartEnd(cmd.Array[2].String, cmd.Array[3].String)
+	xrangeRange, err := parseXRANGEStartEnd(cmd.Array[2].String, cmd.Array[3].String)
 	if err != nil {
 		return resp.GenericError(err.Error())
 	}
 
-	fmt.Printf("XRANGE key: %s, startIndex: %d, startSeq: %d, endIndex: %d, endSeq: %d\n", key, startIndex, startSeq, endIndex, endSeq)
+	streams, err := redisInstance.GetStreamsByRange(key, xrangeRange)
+	if err != nil {
+		return resp.GenericError(err.Error())
+	}
 
-	return ""
+	return streams.ToRESP()
 }
 
-func parseXRANGEStartEnd(start string, end string) (int64, int64, int64, int64, error) {
-	var (
-		startIndex int64
-		startSeq   int64
-		endIndex   int64
-		endSeq     int64
-	)
+func parseXRANGEStartEnd(start string, end string) (*redis.XRangeStartEnd, error) {
+	parsedRange := &redis.XRangeStartEnd{}
+
+	maxInt := int64(1<<63 - 1)
 
 	if start == "-" {
-		startIndex = 0
-		startSeq = 0
+		parsedRange.StartMS = 0
+		parsedRange.StartSeq = 0
 	} else if strings.Contains(start, "-") {
 		parts := strings.Split(start, "-")
 		i, err := strconv.ParseInt(parts[0], 10, 64)
 		if err != nil {
-			return 0, 0, 0, 0, fmt.Errorf("Invalid stream ID specified as stream command argument")
+			return nil, fmt.Errorf("Invalid stream ID specified as stream command argument")
 		}
 
 		s, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil {
-			return 0, 0, 0, 0, fmt.Errorf("Invalid stream ID specified as stream command argument")
+			return nil, fmt.Errorf("Invalid stream ID specified as stream command argument")
 		}
 
-		startIndex = i
-		startSeq = s
+		parsedRange.StartMS = i
+		parsedRange.StartSeq = s
 	} else {
 		i, err := strconv.ParseInt(start, 10, 64)
 		if err != nil {
-			return 0, 0, 0, 0, fmt.Errorf("Invalid stream ID specified as stream command argument")
+			return nil, fmt.Errorf("Invalid stream ID specified as stream command argument")
 		}
 
-		startIndex = i
-		startSeq = 0
+		parsedRange.StartMS = i
+		parsedRange.StartSeq = 0
 	}
 
 	if end == "+" {
-		endIndex = 1<<63 - 1
-		endSeq = 1<<63 - 1
+		parsedRange.EndMS = maxInt
+		parsedRange.EndSeq = maxInt
 	} else if strings.Contains(end, "-") {
 		parts := strings.Split(end, "-")
 		i, err := strconv.ParseInt(parts[0], 10, 64)
 		if err != nil {
-			return 0, 0, 0, 0, fmt.Errorf("Invalid stream ID specified as stream command argument")
+			return nil, fmt.Errorf("Invalid stream ID specified as stream command argument")
 		}
 
 		s, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil {
-			return 0, 0, 0, 0, fmt.Errorf("Invalid stream ID specified as stream command argument")
+			return nil, fmt.Errorf("Invalid stream ID specified as stream command argument")
 		}
 
-		endIndex = i
-		endSeq = s
+		parsedRange.EndMS = i
+		parsedRange.EndSeq = s
 	} else {
 		i, err := strconv.ParseInt(end, 10, 64)
 		if err != nil {
-			return 0, 0, 0, 0, fmt.Errorf("Invalid stream ID specified as stream command argument")
+			return nil, fmt.Errorf("Invalid stream ID specified as stream command argument")
 		}
 
-		endIndex = i
-		endSeq = 1<<63 - 1
+		parsedRange.EndMS = i
+		parsedRange.EndSeq = maxInt
 	}
 
-	return startIndex, startSeq, endIndex, endSeq, nil
+	return parsedRange, nil
 }
