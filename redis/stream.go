@@ -51,7 +51,7 @@ func (r *Redis) GetStreamsByRange(key string, xrangeRange *XRangeStartEnd) (*res
 		}
 
 		for seq, entries := range sequences {
-			if idx == xrangeRange.StartMS && seq < xrangeRange.StartSeq {
+			if idx == xrangeRange.StartMS && (seq < xrangeRange.StartSeq || seq > xrangeRange.EndSeq) {
 				continue
 			}
 
