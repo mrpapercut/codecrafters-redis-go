@@ -38,6 +38,7 @@ func HandleCommand(rawcmd []byte) string {
 			TYPE:   HandleTYPE,
 			XADD:   HandleXADD,
 			XRANGE: HandleXRANGE,
+			XREAD:  HandleXREAD,
 		}
 
 		fn, ok := supportedCommands[SupportedCommand(cmd)]
