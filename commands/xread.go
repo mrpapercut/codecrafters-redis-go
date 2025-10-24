@@ -35,9 +35,7 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 		argIdx = 3
 	}
 
-	// fmt.Printf("hasBlock? %t (block value: %d)\n", hasBlock, blockValue)
-
-	// fmt.Printf("rest args: %#v (length: %d)\n", cmd.Array[argIdx:], len(cmd.Array[argIdx:]))
+	slog.Info("HandleXREAD", "hasBlock", hasBlock, "blockValue", blockValue)
 
 	if len(cmd.Array[argIdx:])%2 != 0 {
 		return resp.GenericError("Unbalanced 'xread' list of streams: for each stream key an ID, '+', or '$' must be specified.")
@@ -53,8 +51,6 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 		ids = append(ids, cmd.Array[argIdx].String)
 	}
 
-	slog.Info("HandleXREAD", "hasBlock?", hasBlock, "blockValue", blockValue, "streams", streams, "ids", ids)
-
 	allResponses := &resp.RESPValue{
 		Type:  resp.Array,
 		Array: make([]*resp.RESPValue, 0),
@@ -65,11 +61,11 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 		if err != nil {
 			return resp.GenericError(fmt.Sprintf("error getting stream: %v", err))
 		}
-		allResponses.Array = append(allResponses.Array, streamResponse)
-	}
 
-	// fmt.Printf("streams: %s\n", strings.Join(streams, ", "))
-	// fmt.Printf("ids: %s", strings.Join(ids, ", "))
+		if len(streamResponse.Array[1].Array) > 0 {
+			allResponses.Array = append(allResponses.Array, streamResponse)
+		}
+	}
 
 	return allResponses.ToRESP()
 }

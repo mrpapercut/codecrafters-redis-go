@@ -44,7 +44,10 @@ func HandleSET(cmd *resp.RESPValue) string {
 		}
 	}
 
-	err := redisInstance.Set(cmd.Array[1], cmd.Array[2], opts...)
+	key := cmd.Array[1].String
+	value := cmd.Array[2]
+
+	err := redisInstance.Set(key, value, opts...)
 	if err != nil {
 		return resp.GenericError("error handling SET")
 	}

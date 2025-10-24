@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/codecrafters-io/redis-starter-go/redis"
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
@@ -46,11 +47,11 @@ func HandleBLPOP(cmd *resp.RESPValue) string {
 
 	ch := make(chan *resp.RESPValue)
 
-	redisInstance.AddWaiter(key, ch)
+	redisInstance.AddWaiter(redis.ListWaiter, key, ch)
 
 	select {
 	case res := <-ch:
-		redisInstance.RemoveWaiter(key, ch)
+		redisInstance.RemoveWaiter(redis.ListWaiter, key, ch)
 
 		response := &resp.RESPValue{
 			Type: resp.Array,
