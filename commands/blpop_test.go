@@ -36,7 +36,7 @@ func TestHandleBLPOPWithWaiting(t *testing.T) {
 		blpopResponse <- HandleCommand(blpopMessage)
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	// LPUSH blpop_key_wait
 	rpushMessage := []byte("*3\r\n$5\r\nRPUSH\r\n$14\r\nblpop_key_wait\r\n$1\r\na\r\n")
