@@ -6,243 +6,153 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
 
-const (
-	LIST_GET     internalOperation = "LIST_GET"
-	LIST_SET     internalOperation = "LIST_SET"
-	LIST_REMOVE  internalOperation = "LIST_REMOVE"
-	LIST_APPEND  internalOperation = "LIST_APPEND"
-	LIST_PREPEND internalOperation = "LIST_PREPEND"
-	LIST_POP     internalOperation = "LIST_POP"
-)
-
 func (r *Redis) GetList(key string) (*resp.RESPValue, error) {
-	responseChan := make(chan internalResponse)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	r.requestChan <- internalRequest{
-		operation:    LIST_GET,
-		key:          key,
-		responseChan: responseChan,
+	response := &resp.RESPValue{
+		Type: resp.Array,
 	}
 
-	response := <-responseChan
-
-	return response.value, response.err
-}
-
-func (r *Redis) handleGetList(req internalRequest) {
-	value, ok := r.storage[req.key]
+	value, ok := r.storage[key]
 	if !ok {
-		req.responseChan <- internalResponse{
-			value: &resp.RESPValue{
-				Type: resp.Array,
-			},
-			err: nil,
-		}
-		return
+		return response, nil
 	}
 
 	if !value.IsList() {
-		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
-		return
+		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
 	}
 
-	req.responseChan <- internalResponse{
-		value: &resp.RESPValue{
-			Type:  resp.Array,
-			Array: value.List,
-		},
-		err: nil,
-	}
+	response.Array = value.List
+
+	return response, nil
 }
 
 func (r *Redis) SetList(key string, value *resp.RESPValue) error {
-	responseChan := make(chan internalResponse)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	r.requestChan <- internalRequest{
-		operation:    LIST_SET,
-		key:          key,
-		value:        value,
-		responseChan: responseChan,
+	existing, ok := r.storage[key]
+	if ok && !existing.IsList() {
+		return fmt.Errorf("operation against a key holding the wrong kind of value")
 	}
 
-	response := <-responseChan
-
-	return response.err
-}
-
-func (r *Redis) handleSetList(req internalRequest) {
-	value, ok := r.storage[req.key]
-	if ok && !value.IsList() {
-		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
-		return
-	}
-
-	r.storage[req.key] = &StorageField{
+	r.storage[key] = &StorageField{
 		Type: ListStorage,
-		List: req.value.Array,
+		List: value.Array,
 	}
 
-	req.responseChan <- internalResponse{}
+	return nil
 }
 
 func (r *Redis) RemoveList(key string) error {
-	responseChan := make(chan internalResponse)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	r.requestChan <- internalRequest{
-		operation:    LIST_REMOVE,
-		key:          key,
-		responseChan: responseChan,
-	}
-
-	response := <-responseChan
-
-	return response.err
-}
-
-func (r *Redis) handleRemoveList(req internalRequest) {
-	_, ok := r.storage[req.key]
+	_, ok := r.storage[key]
 	if ok {
-		r.cleanupKey(req.key)
+		r.cleanupKey(key)
 	}
 
-	req.responseChan <- internalResponse{}
+	return nil
 }
 
 func (r *Redis) AppendList(key string, value *resp.RESPValue) (*resp.RESPValue, error) {
-	responseChan := make(chan internalResponse)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	r.requestChan <- internalRequest{
-		operation:    LIST_APPEND,
-		key:          key,
-		value:        value,
-		responseChan: responseChan,
-	}
-
-	response := <-responseChan
-
-	r.NotifyWaiters(key)
-
-	return response.value, response.err
-}
-
-func (r *Redis) handleAppendList(req internalRequest) {
 	response := &resp.RESPValue{
 		Type: resp.Integer,
 	}
 
-	value, ok := r.storage[req.key]
+	existing, ok := r.storage[key]
 
-	if !ok || r.isExpired(req.key) {
-		r.storage[req.key] = &StorageField{
+	if !ok || r.isExpired(key) {
+		r.storage[key] = &StorageField{
 			Type: ListStorage,
-			List: []*resp.RESPValue{req.value},
+			List: []*resp.RESPValue{value},
 		}
 	} else {
-		if !value.IsList() {
+		if !existing.IsList() {
 			response.Integer = 0
-			req.responseChan <- internalResponse{value: response, err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 
-			return
+			return response, fmt.Errorf("operation against a key holding the wrong kind of value")
 		}
 
-		r.storage[req.key].List = append(r.storage[req.key].List, req.value)
+		r.storage[key].List = append(r.storage[key].List, value)
 	}
 
-	response.Integer = int64(len(r.storage[req.key].List))
+	go r.notifyWaiters(ListWaiter, key)
 
-	req.responseChan <- internalResponse{value: response}
+	response.Integer = int64(len(r.storage[key].List))
+
+	return response, nil
 }
 
 func (r *Redis) PrependList(key string, value *resp.RESPValue) (*resp.RESPValue, error) {
-	responseChan := make(chan internalResponse)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	r.requestChan <- internalRequest{
-		operation:    LIST_PREPEND,
-		key:          key,
-		value:        value,
-		responseChan: responseChan,
-	}
-
-	response := <-responseChan
-
-	r.NotifyWaiters(key)
-
-	return response.value, response.err
-}
-
-func (r *Redis) handlePrependList(req internalRequest) {
 	response := &resp.RESPValue{
 		Type: resp.Integer,
 	}
 
-	value, ok := r.storage[req.key]
+	existing, ok := r.storage[key]
 
-	if !ok || r.isExpired(req.key) {
-		r.storage[req.key] = &StorageField{
+	if !ok || r.isExpired(key) {
+		r.storage[key] = &StorageField{
 			Type: ListStorage,
-			List: []*resp.RESPValue{req.value},
+			List: []*resp.RESPValue{value},
 		}
 	} else {
-		if !value.IsList() {
+		if !existing.IsList() {
 			response.Integer = 0
-			req.responseChan <- internalResponse{value: response, err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 
-			return
+			return response, fmt.Errorf("operation against a key holding the wrong kind of value")
 		}
 
-		oldList := r.storage[req.key].List
+		oldList := r.storage[key].List
 
-		r.storage[req.key].List = []*resp.RESPValue{req.value}
-		r.storage[req.key].List = append(r.storage[req.key].List, oldList...)
+		r.storage[key].List = []*resp.RESPValue{value}
+		r.storage[key].List = append(r.storage[key].List, oldList...)
 	}
 
-	response.Integer = int64(len(r.storage[req.key].List))
+	go r.notifyWaiters(ListWaiter, key)
 
-	req.responseChan <- internalResponse{value: response}
+	response.Integer = int64(len(r.storage[key].List))
+
+	return response, nil
 }
 
 func (r *Redis) PopList(key string) (*resp.RESPValue, error) {
-	responseChan := make(chan internalResponse)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	r.requestChan <- internalRequest{
-		operation:    LIST_POP,
-		key:          key,
-		responseChan: responseChan,
-	}
-
-	response := <-responseChan
-
-	return response.value, response.err
-}
-
-func (r *Redis) handlePopList(req internalRequest) {
-	value, ok := r.storage[req.key]
+	existing, ok := r.storage[key]
 	if !ok {
-		req.responseChan <- internalResponse{value: resp.NullBulkstring()}
-		return
+		return resp.NullBulkstring(), nil
 	}
 
 	list := &resp.RESPValue{
 		Type:  resp.Array,
-		Array: value.List,
+		Array: existing.List,
 	}
 
 	if len(list.Array) == 0 {
-		req.responseChan <- internalResponse{value: resp.NullBulkstring()}
-		return
+		return resp.NullBulkstring(), nil
 	}
 
 	popped := list.Array[0]
 	list.Array = list.Array[1:]
 
 	if len(list.Array) == 0 {
-		r.cleanupKey(req.key)
+		r.cleanupKey(key)
 	} else {
-		r.storage[req.key] = &StorageField{
+		r.storage[key] = &StorageField{
 			Type: ListStorage,
 			List: list.Array,
 		}
 	}
 
-	req.responseChan <- internalResponse{value: popped}
+	return popped, nil
 }

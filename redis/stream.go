@@ -4,7 +4,6 @@ package redis
 
 import (
 	"fmt"
-	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,9 +17,6 @@ import (
  * where sequence ids are the index of the final slice.
  */
 
-const STREAM_RANGE_GET internalOperation = "STREAM_RANGE_GET"
-const STREAM_APPEND internalOperation = "STREAM_APPEND"
-
 type XRangeStartEnd struct {
 	StartMS  int64
 	StartSeq int64
@@ -29,6 +25,9 @@ type XRangeStartEnd struct {
 }
 
 func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	stream, ok := r.storage[key]
 	if !ok {
 		// return empty array or something
@@ -36,7 +35,6 @@ func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error)
 	}
 
 	if !r.storage[key].IsStream() {
-		// req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
 	}
 
@@ -44,8 +42,6 @@ func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error)
 	if err != nil {
 		return nil, fmt.Errorf("error: invalid stream entry ID: %s", id)
 	}
-
-	slog.Info("GetStream", "stream", stream, "idMS", idMS, "idSeq", idSeq)
 
 	response := &resp.RESPValue{
 		Type:  resp.Array,
@@ -81,8 +77,6 @@ func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error)
 				Array: make([]*resp.RESPValue, 0),
 			}
 
-			slog.Info("GetStream", "appending", fmt.Sprintf("%d-%d", idx, seq))
-
 			sequence.Array = append(sequence.Array, &resp.RESPValue{
 				Type:   resp.BulkString,
 				String: fmt.Sprintf("%d-%d", idx, seq),
@@ -102,15 +96,15 @@ func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error)
 }
 
 func (r *Redis) GetStreamsByRange(key string, xrangeRange *XRangeStartEnd) (*resp.RESPValue, error) {
-	// TODO fix async
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	stream, ok := r.storage[key]
 	if !ok {
-		// return empty array or something
 		return nil, fmt.Errorf("stream not found")
 	}
 
 	if !r.storage[key].IsStream() {
-		// req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
 		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
 	}
 
@@ -188,63 +182,47 @@ func (r *Redis) sortStreams(streams *resp.RESPValue) {
 }
 
 func (r *Redis) AppendStream(key string, id string, value *resp.RESPValue) (*resp.RESPValue, error) {
-	responseChan := make(chan internalResponse)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	r.requestChan <- internalRequest{
-		operation:    STREAM_APPEND,
-		key:          key,
-		id:           id,
-		value:        value,
-		responseChan: responseChan,
-	}
-
-	response := <-responseChan
-
-	return response.value, response.err
-}
-
-func (r *Redis) handleAppendStream(req internalRequest) {
-	_, ok := r.storage[req.key]
+	_, ok := r.storage[key]
 	if !ok {
 		stream := &StorageField{
 			Type:   StreamStorage,
 			Stream: &StreamField{Entries: make(map[int64]map[int64][]*resp.RESPValue)},
 		}
 
-		r.storage[req.key] = stream
+		r.storage[key] = stream
 	}
 
-	if !r.storage[req.key].IsStream() {
-		req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
-		return
+	if !r.storage[key].IsStream() {
+		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
 	}
 
-	entryIDms, entryIDseq, err := r.parseStreamEntryID(req.id)
+	entryIDms, entryIDseq, err := r.parseStreamEntryID(id)
 	if err != nil {
-		req.responseChan <- internalResponse{err: err}
-		return
+		return nil, err
 	}
 
-	validMS, validSeq, err := r.validateStreamEntryID(req.key, entryIDms, entryIDseq)
+	validMS, validSeq, err := r.validateStreamEntryID(key, entryIDms, entryIDseq)
 	if err != nil {
-		req.responseChan <- internalResponse{err: err}
-		return
+		return nil, err
 	}
 
 	// All good, create the stream in storage
-	_, ok = r.storage[req.key].Stream.Entries[validMS]
+	_, ok = r.storage[key].Stream.Entries[validMS]
 	if !ok {
-		r.storage[req.key].Stream.Entries[validMS] = make(map[int64][]*resp.RESPValue)
+		r.storage[key].Stream.Entries[validMS] = make(map[int64][]*resp.RESPValue)
 	}
 
-	r.storage[req.key].Stream.Entries[validMS][validSeq] = make([]*resp.RESPValue, 0)
-	r.storage[req.key].Stream.Entries[validMS][validSeq] = append(r.storage[req.key].Stream.Entries[validMS][validSeq], &resp.RESPValue{
+	r.storage[key].Stream.Entries[validMS][validSeq] = make([]*resp.RESPValue, 0)
+	r.storage[key].Stream.Entries[validMS][validSeq] = append(r.storage[key].Stream.Entries[validMS][validSeq], &resp.RESPValue{
 		Type: resp.Map,
-		Map:  req.value.Map,
+		Map:  value.Map,
 	})
 
 	// Store latest entry in stream for easier lookup
-	r.storage[req.key].Stream.LastEntry = &StreamEntryID{
+	r.storage[key].Stream.LastEntry = &StreamEntryID{
 		Time:     validMS,
 		Sequence: validSeq,
 	}
@@ -254,7 +232,7 @@ func (r *Redis) handleAppendStream(req internalRequest) {
 		String: fmt.Sprintf("%d-%d", validMS, validSeq),
 	}
 
-	req.responseChan <- internalResponse{value: response}
+	return response, nil
 }
 
 func (r *Redis) parseStreamEntryID(id string) (int64, int64, error) {
