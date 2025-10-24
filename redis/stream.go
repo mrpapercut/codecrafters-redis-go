@@ -30,7 +30,6 @@ func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error)
 
 	stream, ok := r.storage[key]
 	if !ok {
-		// return empty array or something
 		return nil, fmt.Errorf("stream not found")
 	}
 
@@ -44,14 +43,12 @@ func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error)
 	}
 
 	response := &resp.RESPValue{
-		Type:  resp.Array,
-		Array: make([]*resp.RESPValue, 0),
+		Type: resp.Array,
+		Array: []*resp.RESPValue{{
+			Type:   resp.BulkString,
+			String: key,
+		}},
 	}
-
-	response.Array = append(response.Array, &resp.RESPValue{
-		Type:   resp.BulkString,
-		String: key,
-	})
 
 	for idx, sequences := range stream.Stream.Entries {
 		if idx < idMS {
@@ -72,19 +69,7 @@ func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error)
 				continue
 			}
 
-			sequence := &resp.RESPValue{
-				Type:  resp.Array,
-				Array: make([]*resp.RESPValue, 0),
-			}
-
-			sequence.Array = append(sequence.Array, &resp.RESPValue{
-				Type:   resp.BulkString,
-				String: fmt.Sprintf("%d-%d", idx, seq),
-			})
-
-			for _, entry := range entries {
-				sequence.Array = append(sequence.Array, r.getStreamValuesAsSlice(entry))
-			}
+			sequence := r.getStreamSequence(idx, seq, entries)
 
 			streamEntries.Array = append(streamEntries.Array, sequence)
 		}
@@ -127,19 +112,7 @@ func (r *Redis) GetStreamsByRange(key string, xrangeRange *XRangeStartEnd) (*res
 				continue
 			}
 
-			sequence := &resp.RESPValue{
-				Type:  resp.Array,
-				Array: make([]*resp.RESPValue, 0),
-			}
-
-			sequence.Array = append(sequence.Array, &resp.RESPValue{
-				Type:   resp.BulkString,
-				String: fmt.Sprintf("%d-%d", idx, seq),
-			})
-
-			for _, entry := range entries {
-				sequence.Array = append(sequence.Array, r.getStreamValuesAsSlice(entry))
-			}
+			sequence := r.getStreamSequence(idx, seq, entries)
 
 			response.Array = append(response.Array, sequence)
 		}
@@ -148,6 +121,24 @@ func (r *Redis) GetStreamsByRange(key string, xrangeRange *XRangeStartEnd) (*res
 	r.sortStreams(response)
 
 	return response, nil
+}
+
+func (r *Redis) getStreamSequence(idx int64, seq int64, entries []*resp.RESPValue) *resp.RESPValue {
+	sequence := &resp.RESPValue{
+		Type:  resp.Array,
+		Array: make([]*resp.RESPValue, 0),
+	}
+
+	sequence.Array = append(sequence.Array, &resp.RESPValue{
+		Type:   resp.BulkString,
+		String: fmt.Sprintf("%d-%d", idx, seq),
+	})
+
+	for _, entry := range entries {
+		sequence.Array = append(sequence.Array, r.getStreamValuesAsSlice(entry))
+	}
+
+	return sequence
 }
 
 func (r *Redis) getStreamValuesAsSlice(entry *resp.RESPValue) *resp.RESPValue {
