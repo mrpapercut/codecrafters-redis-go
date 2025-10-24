@@ -4,6 +4,7 @@ package redis
 
 import (
 	"fmt"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,6 +26,79 @@ type XRangeStartEnd struct {
 	StartSeq int64
 	EndMS    int64
 	EndSeq   int64
+}
+
+func (r *Redis) GetStreamEntries(key string, id string) (*resp.RESPValue, error) {
+	stream, ok := r.storage[key]
+	if !ok {
+		// return empty array or something
+		return nil, fmt.Errorf("stream not found")
+	}
+
+	if !r.storage[key].IsStream() {
+		// req.responseChan <- internalResponse{err: fmt.Errorf("operation against a key holding the wrong kind of value")}
+		return nil, fmt.Errorf("operation against a key holding the wrong kind of value")
+	}
+
+	idMS, idSeq, err := r.parseStreamEntryID(id)
+	if err != nil {
+		return nil, fmt.Errorf("error: invalid stream entry ID: %s", id)
+	}
+
+	slog.Info("GetStream", "stream", stream, "idMS", idMS, "idSeq", idSeq)
+
+	response := &resp.RESPValue{
+		Type:  resp.Array,
+		Array: make([]*resp.RESPValue, 0),
+	}
+
+	response.Array = append(response.Array, &resp.RESPValue{
+		Type:   resp.BulkString,
+		String: key,
+	})
+
+	for idx, sequences := range stream.Stream.Entries {
+		if idx < idMS {
+			continue
+		}
+
+		streamEntries := &resp.RESPValue{
+			Type:  resp.Array,
+			Array: make([]*resp.RESPValue, 0),
+		}
+
+		for seq, entries := range sequences {
+			if idx == idMS && seq <= idSeq {
+				continue
+			}
+
+			if len(entries) == 0 {
+				continue
+			}
+
+			sequence := &resp.RESPValue{
+				Type:  resp.Array,
+				Array: make([]*resp.RESPValue, 0),
+			}
+
+			slog.Info("GetStream", "appending", fmt.Sprintf("%d-%d", idx, seq))
+
+			sequence.Array = append(sequence.Array, &resp.RESPValue{
+				Type:   resp.BulkString,
+				String: fmt.Sprintf("%d-%d", idx, seq),
+			})
+
+			for _, entry := range entries {
+				sequence.Array = append(sequence.Array, r.getStreamValuesAsSlice(entry))
+			}
+
+			streamEntries.Array = append(streamEntries.Array, sequence)
+		}
+
+		response.Array = append(response.Array, streamEntries)
+	}
+
+	return response, nil
 }
 
 func (r *Redis) GetStreamsByRange(key string, xrangeRange *XRangeStartEnd) (*resp.RESPValue, error) {
