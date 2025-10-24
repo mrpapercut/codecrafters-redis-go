@@ -10,8 +10,6 @@ async function Send(command) {
         socket.connect(port, host);
 
         socket.on('connect', () => {
-            console.log(`Connected to ${host}:${port}`);
-
             socket.write(command)
         });
 
