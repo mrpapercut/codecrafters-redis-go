@@ -33,7 +33,7 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 
 		timeoutArg = val
 		if timeoutArg == 0 {
-			timeoutArg = 300
+			timeoutArg = 300000
 		}
 
 		argIdx = 4
