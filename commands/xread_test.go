@@ -179,3 +179,44 @@ func TestHandleXREADWithBlockOnExistingStream(t *testing.T) {
 		t.Fatal("XREAD did not unblock")
 	}
 }
+
+func TestHandleXREADWithBlockOnlyNew(t *testing.T) {
+	// XADD apple 0-1 temperature 21
+	message := []byte("*5\r\n$4\r\nXADD\r\n$5\r\napple\r\n$3\r\n0-1\r\n$11\r\ntemperature\r\n$2\r\n21\r\n")
+	expected := "$3\r\n0-1\r\n"
+
+	response := HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	// XREAD block 0 streams apple $
+	xreadMessage := []byte("*6\r\n$5\r\nXREAD\r\n$5\r\nblock\r\n$1\r\n0\r\n$7\r\nstreams\r\n$5\r\napple\r\n$1\r\n$\r\n")
+	xreadExpected := "*1\r\n*2\r\n$5\r\napple\r\n*1\r\n*2\r\n$3\r\n0-2\r\n*2\r\n$11\r\ntemperature\r\n$2\r\n10\r\n"
+
+	xreadResponse := make(chan string, 1)
+
+	go func() {
+		xreadResponse <- HandleCommand(xreadMessage)
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+
+	// XADD apple 0-2 temperature 10
+	message = []byte("*5\r\n$4\r\nXADD\r\n$5\r\napple\r\n$3\r\n0-2\r\n$11\r\ntemperature\r\n$2\r\n10\r\n")
+	expected = "$3\r\n0-2\r\n"
+
+	response = HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+
+	select {
+	case response := <-xreadResponse:
+		if response != xreadExpected {
+			t.Fatalf("expected response to be '%s', got '%s' instead", xreadExpected, response)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("XREAD did not unblock")
+	}
+}
