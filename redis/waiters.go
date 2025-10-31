@@ -105,8 +105,8 @@ func (r *Redis) RemoveStreamWaiter(key string, id string, ch chan *resp.RESPValu
 
 func (r *Redis) notifyStreamWaiters(key string) {
 	r.waiterMu.Lock()
-	list := r.streamWaiters[key]
 	defer r.waiterMu.Unlock()
+	list := r.streamWaiters[key]
 
 	if len(list) > 0 {
 		for id, chans := range list {
