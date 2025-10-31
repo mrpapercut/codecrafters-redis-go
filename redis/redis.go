@@ -10,10 +10,11 @@ import (
 type CommandOption func(*commandContextOption)
 
 type Redis struct {
-	storage     map[string]*StorageField
-	expirations map[string]*time.Time
-	waiters     map[WaiterType]map[string][]chan *resp.RESPValue
-	mu          sync.Mutex
+	storage       map[string]*StorageField
+	expirations   map[string]*time.Time
+	listWaiters   map[string][]chan *resp.RESPValue
+	streamWaiters map[string]map[string][]chan *resp.RESPValue
+	mu            sync.Mutex
 }
 
 var redisLock = &sync.Mutex{}
@@ -26,10 +27,11 @@ func GetInstance() *Redis {
 
 		if redisInstance == nil {
 			redisInstance = &Redis{
-				storage:     make(map[string]*StorageField),
-				expirations: make(map[string]*time.Time),
-				waiters:     make(map[WaiterType]map[string][]chan *resp.RESPValue),
-				mu:          sync.Mutex{},
+				storage:       make(map[string]*StorageField),
+				expirations:   make(map[string]*time.Time),
+				listWaiters:   make(map[string][]chan *resp.RESPValue),
+				streamWaiters: make(map[string]map[string][]chan *resp.RESPValue),
+				mu:            sync.Mutex{},
 			}
 		}
 	}
