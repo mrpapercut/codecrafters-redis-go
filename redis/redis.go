@@ -15,6 +15,7 @@ type Redis struct {
 	listWaiters   map[string][]chan *resp.RESPValue
 	streamWaiters map[string]map[string][]chan *resp.RESPValue
 	mu            sync.Mutex
+	waiterMu      sync.Mutex
 }
 
 var redisLock = &sync.Mutex{}
@@ -32,6 +33,7 @@ func GetInstance() *Redis {
 				listWaiters:   make(map[string][]chan *resp.RESPValue),
 				streamWaiters: make(map[string]map[string][]chan *resp.RESPValue),
 				mu:            sync.Mutex{},
+				waiterMu:      sync.Mutex{},
 			}
 		}
 	}

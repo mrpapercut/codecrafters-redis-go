@@ -14,10 +14,16 @@ const (
 )
 
 func (r *Redis) AddListWaiter(key string, ch chan *resp.RESPValue) {
+	r.waiterMu.Lock()
+	defer r.waiterMu.Unlock()
+
 	r.listWaiters[key] = append(r.listWaiters[key], ch)
 }
 
 func (r *Redis) RemoveListWaiter(key string, ch chan *resp.RESPValue) {
+	r.waiterMu.Lock()
+	defer r.waiterMu.Unlock()
+
 	list := r.listWaiters[key]
 
 	for i, c := range list {
@@ -33,6 +39,9 @@ func (r *Redis) RemoveListWaiter(key string, ch chan *resp.RESPValue) {
 }
 
 func (r *Redis) notifyListWaiters(key string) {
+	r.waiterMu.Lock()
+	defer r.waiterMu.Unlock()
+
 	list := r.listWaiters[key]
 
 	if len(list) > 0 {
@@ -52,6 +61,9 @@ func (r *Redis) notifyListWaiters(key string) {
 }
 
 func (r *Redis) AddStreamWaiter(key string, id string, ch chan *resp.RESPValue) {
+	r.waiterMu.Lock()
+	defer r.waiterMu.Unlock()
+
 	if _, ok := r.streamWaiters[key]; !ok {
 		r.streamWaiters[key] = make(map[string][]chan *resp.RESPValue)
 	}
@@ -70,6 +82,9 @@ func (r *Redis) AddStreamWaiter(key string, id string, ch chan *resp.RESPValue) 
 }
 
 func (r *Redis) RemoveStreamWaiter(key string, id string, ch chan *resp.RESPValue) {
+	r.waiterMu.Lock()
+	defer r.waiterMu.Unlock()
+
 	list := r.streamWaiters[key][id]
 
 	for i, c := range list {
@@ -89,10 +104,16 @@ func (r *Redis) RemoveStreamWaiter(key string, id string, ch chan *resp.RESPValu
 }
 
 func (r *Redis) notifyStreamWaiters(key string) {
+	r.waiterMu.Lock()
 	list := r.streamWaiters[key]
+	defer r.waiterMu.Unlock()
 
 	if len(list) > 0 {
 		for id, chans := range list {
+			if len(chans) == 0 {
+				continue
+			}
+
 			entries, err := r.GetStreamEntries(key, id)
 			if err != nil {
 				fmt.Printf("error getting stream entries: %v\n", err)
@@ -101,6 +122,7 @@ func (r *Redis) notifyStreamWaiters(key string) {
 
 			if len(entries.Array) > 1 {
 				ch := chans[0]
+
 				r.streamWaiters[key][id] = chans[1:]
 
 				go func() {
