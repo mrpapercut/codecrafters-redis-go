@@ -17,7 +17,7 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 	}
 
 	hasBlock := false
-	var timeoutArg float64 = -1
+	timeoutArg := float64(0)
 
 	streams := make([]string, 0)
 	ids := make([]string, 0)
@@ -26,10 +26,12 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 	if strings.ToLower(cmd.Array[1].String) == "block" {
 		hasBlock = true
 
-		timeoutArg, err := strconv.ParseFloat(cmd.Array[2].String, 64)
+		val, err := strconv.ParseFloat(cmd.Array[2].String, 64)
 		if err != nil {
 			return resp.GenericError("timeout is not an integer or out of range")
 		}
+
+		timeoutArg = val
 		if timeoutArg == 0 {
 			timeoutArg = 300
 		}
