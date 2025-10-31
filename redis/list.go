@@ -82,7 +82,7 @@ func (r *Redis) AppendList(key string, value *resp.RESPValue) (*resp.RESPValue, 
 		r.storage[key].List = append(r.storage[key].List, value)
 	}
 
-	go r.notifyWaiters(ListWaiter, key)
+	go r.notifyListWaiters(key)
 
 	response.Integer = int64(len(r.storage[key].List))
 
@@ -117,7 +117,7 @@ func (r *Redis) PrependList(key string, value *resp.RESPValue) (*resp.RESPValue,
 		r.storage[key].List = append(r.storage[key].List, oldList...)
 	}
 
-	go r.notifyWaiters(ListWaiter, key)
+	go r.notifyListWaiters(key)
 
 	response.Integer = int64(len(r.storage[key].List))
 

@@ -218,6 +218,8 @@ func (r *Redis) AppendStream(key string, id string, value *resp.RESPValue) (*res
 		Sequence: validSeq,
 	}
 
+	go r.notifyStreamWaiters(key)
+
 	response := &resp.RESPValue{
 		Type:   resp.BulkString,
 		String: fmt.Sprintf("%d-%d", validMS, validSeq),
