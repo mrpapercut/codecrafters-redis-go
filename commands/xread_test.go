@@ -154,7 +154,28 @@ func TestHandleXREADWithBlockOnExistingStream(t *testing.T) {
 		if response != xreadExpected {
 			t.Fatalf("expected response to be '%s', got '%s' instead", xreadExpected, response)
 		}
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
+		t.Fatal("XREAD did not unblock")
+	}
+
+	// XREAD block 1000 streams pineapple 0-2
+	xreadMessage = []byte("*6\r\n$5\r\nXREAD\r\n$5\r\nblock\r\n$4\r\n1000\r\n$7\r\nstreams\r\n$9\r\npineapple\r\n$3\r\n0-2\r\n")
+	xreadExpected = "*-1\r\n"
+
+	xreadResponse = make(chan string, 1)
+
+	go func() {
+		xreadResponse <- HandleCommand(xreadMessage)
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+
+	select {
+	case response := <-xreadResponse:
+		if response != xreadExpected {
+			t.Fatalf("expected response to be '%s', got '%s' instead", xreadExpected, response)
+		}
+	case <-time.After(2 * time.Second):
 		t.Fatal("XREAD did not unblock")
 	}
 }

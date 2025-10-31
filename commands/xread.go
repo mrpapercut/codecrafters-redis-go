@@ -77,7 +77,7 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 }
 
 func handleXREADBlock(timeoutArg float64, streams []string, ids []string) string {
-	timeout := time.Duration(timeoutArg * float64(time.Second))
+	timeout := time.Duration(timeoutArg * float64(time.Millisecond))
 
 	ch := make(chan *resp.RESPValue)
 
