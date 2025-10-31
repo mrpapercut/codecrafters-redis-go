@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleXREAD(t *testing.T) {
@@ -77,5 +79,39 @@ func TestHandleXREADMultipleStreams(t *testing.T) {
 	response = HandleCommand(message)
 	if response != expected {
 		t.Fatalf("expected response to be '%s', got '%s' instead", expected, response)
+	}
+}
+
+func TestHandleXREADWithBlock(t *testing.T) {
+	// XREAD BLOCK 1000 streams xread_key_block 1526985054069-0
+	xreadMessage := []byte("*6\r\n$5\r\nXREAD\r\n$5\r\nBLOCK\r\n$4\r\n1000\r\n$7\r\nstreams\r\n$15\r\nxread_key_block\r\n$15\r\n1526985054069-0\r\n")
+	// ["xread_key_block", ["1526985054079-0", ["temperature", "37", "humidity", "94"]]]
+	xreadExpected := "*1\r\n*2\r\n$15\r\nxread_key_block\r\n*1\r\n*2\r\n$15\r\n1526985054079-0\r\n*4\r\n$11\r\ntemperature\r\n$2\r\n37\r\n$8\r\nhumidity\r\n$2\r\n94\r\n"
+
+	xreadResponse := make(chan string, 1)
+
+	go func() {
+		xreadResponse <- HandleCommand(xreadMessage)
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+
+	// XADD xread_key_block 1526985054079-0 temperature 37 humidity 94
+	message := []byte("*7\r\n$4\r\nXADD\r\n$15\r\nxread_key_block\r\n$15\r\n1526985054079-0\r\n$11\r\ntemperature\r\n$2\r\n37\r\n$8\r\nhumidity\r\n$2\r\n94\r\n")
+	// "1526985054079-0"
+	expected := "$15\r\n1526985054079-0\r\n"
+
+	response := HandleCommand(message)
+	if response != expected {
+		t.Fatalf("expected response to be '%s', got '%s' instead", strings.ReplaceAll(expected, "\r\n", "\\r\\n"), strings.ReplaceAll(response, "\r\n", "\\r\\n"))
+	}
+
+	select {
+	case response := <-xreadResponse:
+		if response != xreadExpected {
+			t.Fatalf("expected response to be '%s', got '%s' instead", strings.ReplaceAll(xreadExpected, "\r\n", "\\r\\n"), strings.ReplaceAll(response, "\r\n", "\\r\\n"))
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("XREAD did not unblock")
 	}
 }

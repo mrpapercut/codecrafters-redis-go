@@ -2,8 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"log/slog"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/resp"
 )
@@ -16,26 +17,25 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 	}
 
 	hasBlock := false
-	var blockValue int64 = -1
+	var timeoutArg float64 = -1
 
 	streams := make([]string, 0)
 	ids := make([]string, 0)
 
 	argIdx := 2
-	if cmd.Array[1].String == "block" {
+	if strings.ToLower(cmd.Array[1].String) == "block" {
 		hasBlock = true
 
-		val, err := strconv.ParseInt(cmd.Array[2].String, 10, 64)
+		timeoutArg, err := strconv.ParseFloat(cmd.Array[2].String, 64)
 		if err != nil {
 			return resp.GenericError("timeout is not an integer or out of range")
 		}
+		if timeoutArg == 0 {
+			timeoutArg = 300
+		}
 
-		blockValue = val
-
-		argIdx = 3
+		argIdx = 4
 	}
-
-	slog.Info("HandleXREAD", "hasBlock", hasBlock, "blockValue", blockValue)
 
 	if len(cmd.Array[argIdx:])%2 != 0 {
 		return resp.GenericError("Unbalanced 'xread' list of streams: for each stream key an ID, '+', or '$' must be specified.")
@@ -49,6 +49,10 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 	idCount := len(cmd.Array[argIdx:]) + argIdx
 	for ; argIdx < idCount; argIdx++ {
 		ids = append(ids, cmd.Array[argIdx].String)
+	}
+
+	if hasBlock {
+		return handleXREADBlock(timeoutArg, streams, ids)
 	}
 
 	allResponses := &resp.RESPValue{
@@ -68,4 +72,32 @@ func HandleXREAD(cmd *resp.RESPValue) string {
 	}
 
 	return allResponses.ToRESP()
+}
+
+func handleXREADBlock(timeoutArg float64, streams []string, ids []string) string {
+	timeout := time.Duration(timeoutArg * float64(time.Second))
+
+	ch := make(chan *resp.RESPValue)
+
+	for i, stream := range streams {
+		redisInstance.AddStreamWaiter(stream, ids[i], ch)
+	}
+
+	select {
+	case res := <-ch:
+		for i, stream := range streams {
+			redisInstance.RemoveStreamWaiter(stream, ids[i], ch)
+		}
+
+		response := &resp.RESPValue{
+			Type:  resp.Array,
+			Array: []*resp.RESPValue{res},
+		}
+
+		return response.ToRESP()
+	case <-time.After(timeout):
+		nullArray := resp.NullArray()
+
+		return nullArray.ToRESP()
+	}
 }
